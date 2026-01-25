@@ -56,68 +56,34 @@ const svg = `
   <rect width="100%" height="100%" fill="url(#bgGradient)"/>
 
   <!-- Cabinet body -->
-  <rect x="100" y="80" width="1000" height="470" rx="8" fill="${COLORS.cabinet}"
+  <rect x="100" y="120" width="1000" height="390" rx="8" fill="${COLORS.cabinet}"
         stroke="${COLORS.border}" stroke-width="2"/>
 
   <!-- Title bar -->
-  <rect x="100" y="80" width="1000" height="50" rx="8" fill="#252525"/>
-  <rect x="100" y="110" width="1000" height="20" fill="#252525"/>
+  <rect x="100" y="120" width="1000" height="50" rx="8" fill="#252525"/>
+  <rect x="100" y="150" width="1000" height="20" fill="#252525"/>
 
-  <!-- Display panel -->
-  <rect x="150" y="160" width="900" height="200" rx="4" fill="${COLORS.display}"
+  <!-- Display panel - larger and centered -->
+  <rect x="150" y="190" width="900" height="280" rx="4" fill="${COLORS.display}"
         stroke="#1a1a1a" stroke-width="4"/>
 
   <!-- Display inner glow -->
-  <rect x="155" y="165" width="890" height="190" rx="2" fill="none"
+  <rect x="155" y="195" width="890" height="270" rx="2" fill="none"
         stroke="rgba(61, 255, 127, 0.1)" stroke-width="2"/>
 
   <!-- Scanlines overlay on display -->
-  <rect x="150" y="160" width="900" height="200" rx="4" fill="url(#scanlines)" opacity="0.5"/>
+  <rect x="150" y="190" width="900" height="280" rx="4" fill="url(#scanlines)" opacity="0.5"/>
 
   <!-- Main title -->
-  <text x="600" y="250" text-anchor="middle" font-family="monospace, 'Courier New'"
-        font-size="72" font-weight="bold" fill="${COLORS.displayText}" filter="url(#glow)">
+  <text x="600" y="310" text-anchor="middle" font-family="monospace, 'Courier New'"
+        font-size="80" font-weight="bold" fill="${COLORS.displayText}" filter="url(#glow)">
     anamnesis.fm
   </text>
 
   <!-- Tagline -->
-  <text x="600" y="320" text-anchor="middle" font-family="monospace, 'Courier New'"
-        font-size="28" font-style="italic" fill="${COLORS.displayText}" opacity="0.7">
-    A time traveling radio.
-  </text>
-
-  <!-- Decorative elements - frequency display -->
-  <rect x="150" y="400" width="200" height="60" rx="4" fill="#0d1a12" stroke="#1a1a1a" stroke-width="2"/>
-  <text x="250" y="442" text-anchor="middle" font-family="monospace" font-size="24" fill="${COLORS.displayText}" opacity="0.8">
-    98.7 FM
-  </text>
-
-  <!-- Genre indicator -->
-  <rect x="380" y="400" width="150" height="60" rx="4" fill="#0d1a12" stroke="#1a1a1a" stroke-width="2"/>
-  <text x="455" y="442" text-anchor="middle" font-family="monospace" font-size="20" fill="${COLORS.displayText}" opacity="0.8">
-    JAZZ
-  </text>
-
-  <!-- Era indicator -->
-  <rect x="560" y="400" width="150" height="60" rx="4" fill="#0d1a12" stroke="#1a1a1a" stroke-width="2"/>
-  <text x="635" y="442" text-anchor="middle" font-family="monospace" font-size="20" fill="${COLORS.displayText}" opacity="0.8">
-    '60s
-  </text>
-
-  <!-- Region indicator -->
-  <rect x="740" y="400" width="150" height="60" rx="4" fill="#0d1a12" stroke="#1a1a1a" stroke-width="2"/>
-  <text x="815" y="442" text-anchor="middle" font-family="monospace" font-size="20" fill="${COLORS.displayText}" opacity="0.8">
-    EUROPE
-  </text>
-
-  <!-- Play button indicator -->
-  <circle cx="950" cy="430" r="25" fill="#1a1a1a" stroke="#2a2a2a" stroke-width="2"/>
-  <polygon points="942,418 942,442 962,430" fill="${COLORS.displayText}"/>
-
-  <!-- Bottom bar -->
-  <rect x="150" y="490" width="900" height="40" rx="4" fill="#151515"/>
-  <text x="600" y="518" text-anchor="middle" font-family="monospace" font-size="16" fill="${COLORS.textMuted}">
-    Tune into any era. Internet Archive radio broadcasts.
+  <text x="600" y="380" text-anchor="middle" font-family="monospace, 'Courier New'"
+        font-size="32" fill="${COLORS.displayText}" opacity="0.7">
+    a time traveling radio
   </text>
 </svg>
 `;

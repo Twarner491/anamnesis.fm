@@ -360,7 +360,7 @@ export default {
         const path = url.pathname.replace('/api/stream/', '');
         return handleStream(path, request, corsHeaders);
       } else if (url.pathname === '/api/heartbeat') {
-        return handleHeartbeat(env, corsHeaders);
+        return handleHeartbeat(env, corsHeaders, request);
       } else if (url.pathname === '/api/listeners') {
         return handleListenerCount(env, corsHeaders);
       } else {
@@ -674,7 +674,8 @@ async function handleStream(
 // Clients call this every 30 seconds while playing
 async function handleHeartbeat(
   env: Env,
-  corsHeaders: Record<string, string>
+  corsHeaders: Record<string, string>,
+  request: Request
 ): Promise<Response> {
   if (!env.LISTENERS) {
     // KV not configured - return gracefully
@@ -684,8 +685,11 @@ async function handleHeartbeat(
   }
 
   try {
-    // Generate a simple client ID based on timestamp (could use request headers for better ID)
-    const clientId = `listener_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    // Use client IP as unique identifier (Cloudflare provides this header)
+    const clientIp = request.headers.get('CF-Connecting-IP') ||
+                     request.headers.get('X-Forwarded-For')?.split(',')[0] ||
+                     'unknown';
+    const clientId = `listener_${clientIp}`;
 
     // Store heartbeat with 60 second TTL (clients should ping every 30s)
     await env.LISTENERS.put(clientId, '1', { expirationTtl: 60 });
