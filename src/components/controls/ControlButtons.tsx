@@ -24,21 +24,21 @@ export function ControlButtons() {
     }
   };
 
-  const handlePlayPause = () => {
+  const handlePlayPause = async () => {
     if (!isPoweredOn) return;
 
     if (typeof window !== 'undefined') {
       const audioManager = getAudioManager();
-      audioManager.toggle();
+      await audioManager.toggle();
     }
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     if (!isPoweredOn) return;
 
     if (typeof window !== 'undefined') {
       const audioManager = getAudioManager();
-      audioManager.playNext();
+      await audioManager.playNext();
     }
   };
 

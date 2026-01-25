@@ -23,6 +23,10 @@
   align-items: center;
   justify-content: center;
   position: relative;
+  /* Mobile touch improvements */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .control-button::before {

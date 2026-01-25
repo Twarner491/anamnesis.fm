@@ -6,44 +6,38 @@ Listen in at [anamnesis.fm](https://anamnesis.fm).
 
 ---
 
-The radio aggregates content from these [Internet Archive](https://archive.org/) collections:
+The radio aggregates true radio broadcasts from these [Internet Archive](https://archive.org/) collections:
 
-- [Old Time Radio](https://archive.org/details/oldtimeradio) - Golden age radio dramas, comedy, and music from the 1920s-1960s
-- [Radio Programs](https://archive.org/details/radioprograms) - Massive collection of radio show recordings
-- [Radio](https://archive.org/details/radio) - General radio broadcasts and recordings
-- [FM Radio Archive](https://archive.org/details/fmradioarchive) - FM radio recordings and airchecks
-- [Live Music Archive (etree)](https://archive.org/details/etree) - Trade-friendly live concert recordings
-- [Grateful Dead](https://archive.org/details/GratefulDead) - Extensive live show archive
-- [Phil Lesh and Friends](https://archive.org/details/PhilLeshAndFriends) - Live performances
-- [Jerry Garcia](https://archive.org/details/JerryGarcia) - Solo and band recordings
-- [Furthur](https://archive.org/details/furthur) - Post-Dead live performances
-- [Ratdog](https://archive.org/details/Ratdog) - Bob Weir's band recordings
+- [Old Time Radio](https://archive.org/details/oldtimeradio) - Golden age radio dramas, comedy, and music
 - [Hip Hop Radio Archive](https://archive.org/details/hiphopradioarchive) - Classic hip-hop radio and mix shows
-- [Voice of America Newscasts](https://archive.org/details/VOANewscasts) - 86,000+ VOA news broadcasts
-- [BBC Radio](https://archive.org/details/bbcradio) - British Broadcasting Corporation archives
-- [CBC Radio](https://archive.org/details/cbc_radio) - Canadian Broadcasting Corporation
-- [Radio Archive](https://archive.org/details/radioarchive) - International radio recordings
-- [Audio Music](https://archive.org/details/audio_music) - Music, arts, and culture broadcasts
-- [78 RPM Records](https://archive.org/details/78rpm) - Digitized 78rpm recordings
-- [78 RPM Boston Public Library](https://archive.org/details/78rpm_bostonpubliclibrary) - Historic Boston collection
-- [George Blood](https://archive.org/details/georgeblood) - Professional audio transfers
-- [Free Music](https://archive.org/details/free_music) - Creative commons music
-- [Netlabels](https://archive.org/details/netlabels) - Independent internet labels
-- [Audio](https://archive.org/details/audio) - General audio collection
-- [Jazz](https://archive.org/details/jazz) - Jazz recordings and performances
-- [Jazz Library](https://archive.org/details/jazzlibrary) - Historical jazz collection
-- [Classical](https://archive.org/details/classical) - Classical music recordings
-- [Audio Religion](https://archive.org/details/audio_religion) - Religious broadcasts and music
-- [African Music](https://archive.org/details/african_music) - Music from Africa
-- [India Music](https://archive.org/details/india_music) - Indian classical and folk
-- [Arabian Music](https://archive.org/details/arabian_music) - Middle Eastern music
-- [Latin America](https://archive.org/details/latinamerica) - Latin American recordings
-- [LibriVox](https://archive.org/details/librivox) - Public domain audiobooks
-- [Audio Books & Poetry](https://archive.org/details/audio_bookspoetry) - Literary recordings
-- [Podcasts](https://archive.org/details/podcasts) - Podcast archive
-- [News and Public Affairs](https://archive.org/details/newsandpublicaffairs) - News broadcasts
-- [Open Source Audio](https://archive.org/details/opensource_audio) - Community contributions
-- [Audio Foreign](https://archive.org/details/audio_foreign) - Non-English audio content
+- [Radio Stations and Archives](https://archive.org/details/radiostationarchives) - Radio station recordings
+- [Radio Shows and Broadcasts](https://archive.org/details/radioshowarchive) - Historic radio show recordings
+- [Radio Free Crockett](https://archive.org/details/radiofreecrockett) - Eclectic radio programming
+- [East Village Radio](https://archive.org/details/eastvillageradio) - NYC independent radio archive
+- [Mystic Sound](https://archive.org/details/eastvillageradio-mystic-sound) - EVR world music show
+- [Minimal Wave](https://archive.org/details/eastvillageradio-minimal-wave) - EVR synth and minimal wave
+- [Peer Pressure](https://archive.org/details/eastvillageradio-peer-pressure) - EVR indie music show
+- [The Holy Sh-t Sound System](https://archive.org/details/eastvillageradio-the-holy-sh-t-sound-system) - EVR eclectic mix
+- [Forty Deuce](https://archive.org/details/eastvillageradio-forty-deuce) - EVR Times Square sounds
+- [Jamaica Rock](https://archive.org/details/eastvillageradio-jamaica-rock) - EVR reggae and dancehall
+- [Pop Goes the Future](https://archive.org/details/eastvillageradio-pop-goes-the-future) - EVR pop music show
+- [The Ragged Phonograph Program](https://archive.org/details/eastvillageradio-the-ragged-phonograph-program) - EVR vintage sounds
+- [RADIOINGRID](https://archive.org/details/eastvillageradio-radioingrid) - EVR experimental show
+- [Black And Blue Take Over](https://archive.org/details/eastvillageradio-black-and-blue-take-over) - EVR blues and soul
+- [Radio Tiana](https://archive.org/details/radiotiana) - International radio archive
+- [Radia](https://archive.org/details/radiafm) - Independent radio art network
+- [Radio Islam International](https://archive.org/details/radioislaminternational) - Islamic radio broadcasts
+- [La Mosquitera Radio](https://archive.org/details/lamosquitera) - Spanish language radio
+- [WJMS Radio](https://archive.org/details/wjms-radio) - Community radio archive
+- [Radio Osorno](https://archive.org/details/osornoradio) - Chilean radio broadcasts
+- [Ujyaalo Radio](https://archive.org/details/ujyaaloradio) - Nepali radio programming
+- [WJZM Archives](https://archive.org/details/wjzmarchive) - Tennessee radio archive
+- [Netherlands Radio Show Archives](https://archive.org/details/concertzender) - Dutch radio broadcasts
+- [OID Radio Archives](https://archive.org/details/oidradioarchive) - Community radio recordings
+- [Radio Trinitat Vella](https://archive.org/details/radiotrinitatvella) - Barcelona community radio
+- [Radio VK Archive](https://archive.org/details/radiovkarchive) - Russian radio broadcasts
+- [Schickele Mix](https://archive.org/details/SchickeleMix) - Peter Schickele's eclectic radio show
+- [Moody Blues Radio](https://archive.org/details/moodybluesradio) - Band radio appearances
 
 ---
 

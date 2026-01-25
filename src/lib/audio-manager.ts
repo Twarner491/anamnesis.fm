@@ -297,21 +297,48 @@ class AudioManager {
     this.audio?.pause();
   }
 
-  resume() {
+  async resume() {
     if (!$isPoweredOn.get()) return;
-    this.audio?.play();
+
+    // Resume AudioContext if suspended (required for mobile)
+    if (this.audioContext?.state === 'suspended') {
+      try {
+        await this.audioContext.resume();
+      } catch (e) {
+        console.error('Failed to resume AudioContext:', e);
+      }
+    }
+
+    try {
+      await this.audio?.play();
+    } catch (e) {
+      console.error('Resume play failed:', e);
+      // On mobile, if play fails, try fetching new tracks
+      if (!$currentTrack.get()) {
+        await this.playNext();
+      }
+    }
   }
 
-  toggle() {
+  async toggle() {
     if (!$isPoweredOn.get()) return;
 
+    // Always try to resume AudioContext on user interaction (mobile requirement)
+    if (this.audioContext?.state === 'suspended') {
+      try {
+        await this.audioContext.resume();
+      } catch (e) {
+        console.error('Failed to resume AudioContext:', e);
+      }
+    }
+
     if ($isPaused.get()) {
-      this.resume();
+      await this.resume();
     } else if ($isPlaying.get()) {
       this.pause();
     } else {
       // Not playing anything, try to play from queue
-      this.playNext();
+      await this.playNext();
     }
   }
 
@@ -501,12 +528,22 @@ class AudioManager {
       this.isInitialized = true;
     }
 
+    // Resume AudioContext if suspended (required for mobile - must happen during user gesture)
+    if (this.audioContext?.state === 'suspended') {
+      try {
+        await this.audioContext.resume();
+        console.log('AudioContext resumed successfully');
+      } catch (e) {
+        console.error('Failed to resume AudioContext:', e);
+      }
+    }
+
     // If no tracks in queue, fetch some
     if ($queue.get().length === 0) {
       await this.fetchMoreTracks();
     } else {
       // Resume playback
-      this.playNext();
+      await this.playNext();
     }
   }
 }

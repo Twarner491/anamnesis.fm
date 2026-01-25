@@ -5,7 +5,7 @@
 <div class="radio-cabinet">
   <div class="cabinet-titlebar">
     <div class="titlebar-left">
-      <span class="logo">anamnesis.fm</span>
+      <a href="/about" class="logo">anamnesis.fm</a>
     </div>
   </div>
   <div class="cabinet-body">
@@ -53,6 +53,12 @@
     font-size: 14px;
     color: var(--color-text-muted);
     letter-spacing: 1px;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .logo:hover {
+    color: var(--color-display-text);
   }
 
   .cabinet-body {

@@ -5,55 +5,42 @@ interface Env {
   CORS_ORIGIN: string;
 }
 
-// Archive.org collections to aggregate - comprehensive list for variety
+// Archive.org collections - true radio broadcasts with DJs, music, talking, mixing
 const COLLECTIONS = [
   // Core radio archives
   'oldtimeradio',
-  'radioprograms',
-  'radio',
-  'fmradioarchive',
-  // Live music archives
-  'etree',
-  'GratefulDead',
-  'PhilLeshAndFriends',
-  'JerryGarcia',
-  'furthur',
-  'Ratdog',
-  // Hip-hop
   'hiphopradioarchive',
-  // International radio
-  'VOANewscasts',
-  'bbcradio',
-  'cbc_radio',
-  'radioarchive',
-  // Music collections
-  'audio_music',
-  '78rpm',
-  '78rpm_bostonpubliclibrary',
-  'georgeblood',
-  'free_music',
-  'netlabels',
-  'audio',
-  // Jazz
-  'jazz',
-  'jazzlibrary',
-  // Classical
-  'classical',
-  'audio_religion',
-  // World music
-  'african_music',
-  'india_music',
-  'arabian_music',
-  'latinamerica',
-  // Spoken word
-  'librivox',
-  'audio_bookspoetry',
-  'podcasts',
-  // News
-  'newsandpublicaffairs',
-  // Community
-  'opensource_audio',
-  'audio_foreign',
+  'radiostationarchives',
+  'radioshowarchive',
+  'radiofreecrockett',
+  // East Village Radio Archive
+  'eastvillageradio',
+  'eastvillageradio-mystic-sound',
+  'eastvillageradio-minimal-wave',
+  'eastvillageradio-peer-pressure',
+  'eastvillageradio-the-holy-sh-t-sound-system',
+  'eastvillageradio-forty-deuce',
+  'eastvillageradio-jamaica-rock',
+  'eastvillageradio-pop-goes-the-future',
+  'eastvillageradio-the-ragged-phonograph-program',
+  'eastvillageradio-radioingrid',
+  'eastvillageradio-black-and-blue-take-over',
+  // International radio stations
+  'radiotiana',
+  'radiafm',
+  'radioislaminternational',
+  'lamosquitera',
+  'wjms-radio',
+  'osornoradio',
+  'ujyaaloradio',
+  'wjzmarchive',
+  'concertzender',
+  'oidradioarchive',
+  'radiotrinitatvella',
+  'radiovkarchive',
+  // Special radio shows
+  'SchickeleMix',
+  'moodybluesradio',
 ] as const;
 
 export default {
