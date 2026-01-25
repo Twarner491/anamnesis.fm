@@ -31,10 +31,54 @@ class AudioManager {
     if (typeof window !== 'undefined') {
       this.audio = new Audio();
       this.audio.crossOrigin = 'anonymous';
+      this.audio.preload = 'auto';
+      // These help with background playback on mobile
+      (this.audio as any).playsInline = true;
+      (this.audio as any).webkitPlaysInline = true;
       this.setupEventListeners();
       this.setupFilterSubscription();
       this.setupMediaSession();
+      this.setupBackgroundPlayback();
     }
+  }
+
+  // Keep audio playing in background on mobile
+  private setupBackgroundPlayback() {
+    // Handle visibility changes - resume playback if it was interrupted
+    document.addEventListener('visibilitychange', async () => {
+      if (document.hidden) {
+        // Page is hidden but we're playing - keep audio context alive
+        if ($isPlaying.get() && this.audioContext?.state === 'suspended') {
+          this.audioContext.resume().catch(() => {});
+        }
+      } else {
+        // Page became visible again - check if we need to resume
+        if ($isPlaying.get() && this.audio?.paused && this.audio.src) {
+          console.log('Page visible, resuming paused audio');
+          try {
+            await this.audio.play();
+          } catch (e) {
+            console.log('Could not auto-resume, user interaction needed');
+          }
+        }
+        // Also resume audio context if suspended
+        if (this.audioContext?.state === 'suspended') {
+          this.audioContext.resume().catch(() => {});
+        }
+      }
+    });
+
+    // On iOS, periodically check and resume audio context if needed
+    setInterval(() => {
+      if ($isPlaying.get() && this.audioContext?.state === 'suspended') {
+        this.audioContext.resume().catch(() => {});
+      }
+      // Also check if audio element got paused unexpectedly
+      if ($isPlaying.get() && this.audio?.paused && this.audio.src && !$isPaused.get()) {
+        console.log('Audio paused unexpectedly, attempting resume');
+        this.audio.play().catch(() => {});
+      }
+    }, 2000);
   }
 
   // Set up Media Session API for background playback and lock screen controls
@@ -620,9 +664,20 @@ class AudioManager {
 
         // Filter tracks to only include those matching the selected era
         const selectedEra = $era.get();
-        const tracks = allTracks.filter(track => this.isTrackInEra(track.date, selectedEra));
+        const eraFilteredTracks = allTracks.filter(track => this.isTrackInEra(track.date, selectedEra));
 
-        console.log(`After era validation: ${tracks.length}/${allTracks.length} tracks match era ${selectedEra || 'ALL'}`);
+        // Deduplicate by creator to ensure variety across different shows
+        const seenCreators = new Set<string>();
+        const tracks = eraFilteredTracks.filter(track => {
+          const creator = (track.creator || track.identifier?.split('-')[0] || 'unknown').toLowerCase().trim();
+          if (seenCreators.has(creator)) {
+            return false; // Skip duplicate creator
+          }
+          seenCreators.add(creator);
+          return true;
+        });
+
+        console.log(`After era validation: ${eraFilteredTracks.length}/${allTracks.length} tracks, after dedup: ${tracks.length} unique shows`);
 
         if (tracks.length > 0) {
           addToQueue(tracks);

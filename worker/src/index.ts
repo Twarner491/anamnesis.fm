@@ -481,12 +481,37 @@ async function handleSearch(
   };
 
   let items = (data.response?.docs || []).filter(
-    (item): item is { identifier: string } =>
+    (item): item is { identifier: string; creator?: string; title?: string } =>
       typeof item === 'object' && item !== null && 'identifier' in item
   );
 
-  // Shuffle results for additional randomness
-  items = shuffleArray(items);
+  // Deduplicate by creator/show to ensure variety across different shows
+  // Instead of getting many episodes from the same show, limit to 2 per creator
+  const itemsByCreator = new Map<string, typeof items>();
+  for (const item of items) {
+    // Use creator if available, otherwise try to extract show name from identifier/title
+    const creator = item.creator ||
+                    item.identifier?.split('-')[0] ||
+                    item.title?.split(' - ')[0] ||
+                    'unknown';
+    const key = creator.toLowerCase().trim();
+
+    if (!itemsByCreator.has(key)) {
+      itemsByCreator.set(key, []);
+    }
+    itemsByCreator.get(key)!.push(item);
+  }
+
+  // Take up to 2 items per creator, then shuffle
+  const diverseItems: typeof items = [];
+  for (const [_, creatorItems] of itemsByCreator) {
+    // Shuffle items within each creator group and take up to 2
+    const shuffledCreatorItems = shuffleArray(creatorItems);
+    diverseItems.push(...shuffledCreatorItems.slice(0, 2));
+  }
+
+  // Shuffle the diverse results for final randomness
+  items = shuffleArray(diverseItems);
 
   return new Response(
     JSON.stringify({
