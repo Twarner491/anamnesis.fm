@@ -33,7 +33,56 @@ class AudioManager {
       this.audio.crossOrigin = 'anonymous';
       this.setupEventListeners();
       this.setupFilterSubscription();
+      this.setupMediaSession();
     }
+  }
+
+  // Set up Media Session API for background playback and lock screen controls
+  private setupMediaSession() {
+    if (!('mediaSession' in navigator)) return;
+
+    // Set action handlers for media controls
+    navigator.mediaSession.setActionHandler('play', () => {
+      this.resume();
+    });
+
+    navigator.mediaSession.setActionHandler('pause', () => {
+      this.pause();
+    });
+
+    navigator.mediaSession.setActionHandler('nexttrack', () => {
+      this.playNext();
+    });
+
+    navigator.mediaSession.setActionHandler('previoustrack', () => {
+      // We don't have previous track functionality, but handle it gracefully
+      // Could potentially play from history in the future
+    });
+
+    // Update playback state when our state changes
+    $isPlaying.subscribe((playing) => {
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+      }
+    });
+  }
+
+  // Update Media Session metadata with current track info
+  private updateMediaSessionMetadata(track: Track) {
+    if (!('mediaSession' in navigator)) return;
+
+    const year = track.date ? track.date.substring(0, 4) : '';
+    const artist = track.creator || 'Internet Archive';
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.title || 'Unknown Track',
+      artist: artist,
+      album: year ? `${year} • anamnesis.fm` : 'anamnesis.fm',
+      artwork: [
+        // Use a generic artwork - could be enhanced with track-specific art later
+        { src: '/thumb.png', sizes: '512x512', type: 'image/png' },
+      ],
+    });
   }
 
   private setupFilterSubscription() {
@@ -253,7 +302,18 @@ class AudioManager {
       console.error('Too many consecutive playback errors, stopping');
       setLoading(false);
       setPlaybackState(false, false);
+      this.consecutiveErrors = 0; // Reset for next user interaction
       return;
+    }
+
+    // Resume AudioContext BEFORE attempting playback (critical for mobile)
+    if (this.audioContext?.state === 'suspended') {
+      try {
+        await this.audioContext.resume();
+        console.log('AudioContext resumed before playback');
+      } catch (e) {
+        console.error('Failed to resume AudioContext:', e);
+      }
     }
 
     // Add current track to history before switching
@@ -265,23 +325,34 @@ class AudioManager {
     setCurrentTrack(track);
     setPlaybackState(true, false);
 
+    // Update lock screen / notification metadata
+    this.updateMediaSessionMetadata(track);
+
     // Construct proxied URL
     const encodedFilename = encodeURIComponent(track.filename);
     const proxyUrl = apiUrl(`api/stream/${track.identifier}/${encodedFilename}`);
     this.audio.src = proxyUrl;
+
+    // Load the audio first (helps on mobile)
+    this.audio.load();
 
     try {
       await this.audio.play();
 
       // Reset error counter on success
       this.consecutiveErrors = 0;
-
-      // Resume audio context if suspended (required after user interaction)
-      if (this.audioContext?.state === 'suspended') {
-        await this.audioContext.resume();
-      }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Playback failed:', e);
+
+      // Check if it's a user gesture error (NotAllowedError)
+      if (e.name === 'NotAllowedError') {
+        console.log('Playback blocked - needs user gesture. Will retry on next tap.');
+        // Don't count as error - user just needs to tap again
+        setPlaybackState(false, false);
+        setLoading(false);
+        return;
+      }
+
       this.consecutiveErrors++;
 
       // Only try next track if we haven't hit the limit
@@ -305,16 +376,34 @@ class AudioManager {
     if (this.audioContext?.state === 'suspended') {
       try {
         await this.audioContext.resume();
+        console.log('AudioContext resumed');
       } catch (e) {
         console.error('Failed to resume AudioContext:', e);
       }
     }
 
+    if (!this.audio) return;
+
     try {
-      await this.audio?.play();
-    } catch (e) {
+      // If there's no source, we need to fetch tracks
+      if (!this.audio.src || this.audio.src === '' || this.audio.src === window.location.href) {
+        console.log('No audio source, fetching tracks...');
+        await this.playNext();
+        return;
+      }
+
+      await this.audio.play();
+    } catch (e: any) {
       console.error('Resume play failed:', e);
-      // On mobile, if play fails, try fetching new tracks
+
+      // If blocked by browser policy, inform user
+      if (e.name === 'NotAllowedError') {
+        console.log('Resume blocked - tap play again');
+        setPlaybackState(false, false);
+        return;
+      }
+
+      // On other errors, try fetching new tracks
       if (!$currentTrack.get()) {
         await this.playNext();
       }
@@ -324,40 +413,50 @@ class AudioManager {
   async toggle() {
     if (!$isPoweredOn.get()) return;
 
-    // Initialize audio system if not already done (must happen during user gesture on mobile)
+    // CRITICAL: All audio initialization must happen during user gesture on mobile
+    // Do this FIRST, synchronously within the gesture handler
+
+    // 1. Initialize audio system if needed
     if (!this.isInitialized) {
       this.initializeAnalyser();
       this.isInitialized = true;
     }
 
-    // Always try to resume AudioContext on user interaction (mobile requirement)
+    // 2. Always try to resume AudioContext on EVERY user interaction (mobile requirement)
+    // This must happen during the user gesture, not after an await
     if (this.audioContext?.state === 'suspended') {
-      try {
-        await this.audioContext.resume();
-      } catch (e) {
+      // Don't await - fire and continue to not lose the gesture
+      this.audioContext.resume().catch(e => {
         console.error('Failed to resume AudioContext:', e);
-      }
+      });
     }
 
-    // Prime audio element for mobile Safari (must happen during user gesture)
+    // 3. Prime audio element for mobile Safari (must happen during user gesture)
     // This unlocks the audio element for future programmatic playback
     if (this.audio && !this.isAudioPrimed) {
       try {
-        // Create a tiny silent audio to prime playback
-        const originalSrc = this.audio.src;
+        // Play silent audio synchronously during gesture
         this.audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-        await this.audio.play();
-        this.audio.pause();
-        this.audio.src = originalSrc;
-        this.isAudioPrimed = true;
-        console.log('Audio element primed for mobile playback');
+        // Use play() without await to start immediately during gesture
+        const playPromise = this.audio.play();
+        if (playPromise) {
+          playPromise.then(() => {
+            this.audio?.pause();
+            this.isAudioPrimed = true;
+            console.log('Audio element primed for mobile playback');
+          }).catch(e => {
+            // Still mark as primed - the gesture was captured
+            this.isAudioPrimed = true;
+            console.log('Audio priming partial:', e);
+          });
+        }
       } catch (e) {
-        // Mark as primed anyway to avoid repeated attempts
         this.isAudioPrimed = true;
         console.log('Audio priming skipped:', e);
       }
     }
 
+    // Now handle the actual play/pause logic
     if ($isPaused.get()) {
       await this.resume();
     } else if ($isPlaying.get()) {

@@ -29,6 +29,8 @@ export function ControlButtons() {
 
     if (typeof window !== 'undefined') {
       const audioManager = getAudioManager();
+      // Always allow toggle - this ensures user gesture is captured on mobile
+      // Even during loading, we want to capture the tap to unlock audio
       await audioManager.toggle();
     }
   };
@@ -62,11 +64,11 @@ export function ControlButtons() {
         </svg>
       </button>
 
-      {/* Play/Pause button */}
+      {/* Play/Pause button - NOT disabled during loading to allow mobile retry taps */}
       <button
         className={`control-button play-button ${isPlaying ? 'playing' : ''} ${!isPoweredOn ? 'disabled' : ''}`}
         onClick={handlePlayPause}
-        disabled={!isPoweredOn || isLoading}
+        disabled={!isPoweredOn}
         type="button"
         aria-label={isPlaying ? 'Pause' : 'Play'}
       >

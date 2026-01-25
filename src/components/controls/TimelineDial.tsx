@@ -61,6 +61,7 @@ export function TimelineDial() {
   }, []);
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (!isPoweredOn) return; // Disable when powered off
     setIsDragging(true);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     updatePositionFromEvent(e);
@@ -101,6 +102,7 @@ export function TimelineDial() {
 
   // Click on era marker to jump to it
   const handleEraClick = (era: typeof ERA_RANGES[number]) => {
+    if (!isPoweredOn) return; // Disable when powered off
     const newPosition = (era.position / 180) * 100;
     setPosition(newPosition);
     latestPositionRef.current = newPosition;

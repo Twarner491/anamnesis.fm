@@ -312,3 +312,17 @@
   color: var(--color-text-dim);
   text-shadow: none;
 }
+
+.timeline-tuner.power-off .tuner-track {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.timeline-tuner.power-off .tuner-thumb {
+  cursor: not-allowed;
+}
+
+.timeline-tuner.power-off .era-marker {
+  cursor: not-allowed;
+  pointer-events: none;
+}

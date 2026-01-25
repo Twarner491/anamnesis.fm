@@ -58,6 +58,11 @@
   border-color: rgba(10, 51, 21, 0.5);
 }
 
+.display-panel.display-off .no-signal-text {
+  animation: none;
+  opacity: 0.3;
+}
+
 .display-content {
   position: relative;
   display: flex;

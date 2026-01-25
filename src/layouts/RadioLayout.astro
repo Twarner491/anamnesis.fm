@@ -1,4 +1,6 @@
 ---
+import { ClientRouter } from 'astro:transitions';
+
 interface Props {
   title?: string;
 }
@@ -33,6 +35,8 @@ const { title = "anamnesis.fm" } = Astro.props;
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
     <title>{title}</title>
+    <!-- Enable SPA-like navigation to preserve audio playback across pages -->
+    <ClientRouter />
   </head>
   <body>
     <slot />

@@ -33,6 +33,7 @@ export function FilterDial({ type }: FilterDialProps) {
   const latestIndexRef = useRef(currentIndex);
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (!isPoweredOn) return; // Disable when powered off
     setIsDragging(true);
     wasDraggingRef.current = false; // Reset on new interaction
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -80,6 +81,8 @@ export function FilterDial({ type }: FilterDialProps) {
 
   // Click to cycle through options (only if not dragging)
   const handleClick = () => {
+    if (!isPoweredOn) return; // Disable when powered off
+
     // If we just finished dragging, ignore this click
     if (wasDraggingRef.current) {
       wasDraggingRef.current = false;

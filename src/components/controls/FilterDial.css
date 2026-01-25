@@ -121,6 +121,11 @@
   background: #010201;
 }
 
+.filter-dial.power-off .filter-knob {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .filter-dial.power-off .filter-knob:hover {
   box-shadow: var(--shadow-raised);
 }
