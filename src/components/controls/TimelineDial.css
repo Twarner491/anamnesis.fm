@@ -1,0 +1,314 @@
+.timeline-tuner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--color-surface-dark);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-inset-dark);
+  width: 100%;
+  border: 1px solid var(--color-border-dark);
+}
+
+.tuner-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.tuner-title {
+  font-family: var(--font-label);
+  font-size: 9px;
+  font-weight: normal;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.tuner-subtitle {
+  font-family: var(--font-label);
+  font-size: 8px;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Slider container */
+.tuner-slider-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Era markers above track */
+.era-markers {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  padding: 0 12px;
+}
+
+.era-marker {
+  position: absolute;
+  left: var(--marker-position);
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--color-metal-highlight);
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.era-marker:hover {
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow);
+}
+
+.era-marker.active {
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow-strong);
+}
+
+/* Slider track - CRT style display */
+.tuner-track {
+  position: relative;
+  width: calc(100% - 24px);
+  height: 28px;
+  background: var(--color-display-bg);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 2px solid var(--color-metal-dark);
+  box-shadow: var(--shadow-display);
+  margin: 0 12px;
+  overflow: hidden;
+}
+
+/* CRT scanlines on track */
+.tuner-track::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.1) 0px,
+    rgba(0, 0, 0, 0.1) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events: none;
+  z-index: 3;
+}
+
+.tuner-track.dragging {
+  cursor: grabbing;
+}
+
+/* Track fill - green glow */
+.track-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(51, 255, 102, 0.05) 0%,
+    rgba(51, 255, 102, 0.2) 100%
+  );
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  pointer-events: none;
+}
+
+/* Tick marks */
+.track-ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.track-tick {
+  position: absolute;
+  left: var(--tick-position);
+  top: 50%;
+  width: 1px;
+  height: 12px;
+  background: var(--color-display-text-dim);
+  transform: translateX(-50%) translateY(-50%);
+  opacity: 0.5;
+}
+
+.track-tick.active {
+  background: var(--color-display-text);
+  opacity: 1;
+  width: 2px;
+  height: 18px;
+  box-shadow: 0 0 8px rgba(51, 255, 102, 0.6);
+}
+
+/* Slider thumb - classic radio dial style */
+.tuner-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 36px;
+  background: linear-gradient(
+    90deg,
+    var(--color-metal-highlight) 0%,
+    var(--color-metal-medium) 50%,
+    var(--color-metal-dark) 100%
+  );
+  border-radius: 2px;
+  box-shadow: var(--shadow-raised);
+  border: 1px solid var(--color-metal-dark);
+  cursor: grab;
+  transition: transform 0.05s ease-out;
+  z-index: 2;
+}
+
+.tuner-track.dragging .tuner-thumb {
+  cursor: grabbing;
+  transition: none;
+}
+
+.thumb-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 20px;
+  background: linear-gradient(
+    180deg,
+    var(--color-display-text-bright) 0%,
+    var(--color-display-text) 50%,
+    var(--color-display-text) 100%
+  );
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  box-shadow: 0 0 8px rgba(51, 255, 102, 0.8);
+}
+
+/* Digital readout - CRT style */
+.tuner-readout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: var(--color-display-bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-dark);
+  box-shadow: var(--shadow-display);
+  position: relative;
+  overflow: hidden;
+}
+
+/* CRT effect on readout */
+.tuner-readout::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.1) 0px,
+    rgba(0, 0, 0, 0.1) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events: none;
+}
+
+.frequency-display {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.freq-value {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow-strong);
+  letter-spacing: 1px;
+}
+
+.freq-unit {
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow);
+  letter-spacing: 1px;
+}
+
+.era-display {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow);
+  padding-left: 10px;
+  border-left: 1px solid var(--color-display-text-dim);
+  letter-spacing: 1px;
+}
+
+/* Mobile - keep layout consistent, just hide some era markers */
+@media (max-width: 600px) {
+  .era-marker {
+    font-size: 10px;
+  }
+
+  /* Hide some markers on mobile to reduce clutter */
+  .era-marker:nth-child(even):not(.active) {
+    display: none;
+  }
+}
+
+/* Power off state - dim everything */
+.timeline-tuner.power-off .tuner-track {
+  background: #010201;
+}
+
+.timeline-tuner.power-off .track-fill {
+  background: none;
+}
+
+.timeline-tuner.power-off .track-tick {
+  background: #1a2a1a;
+  box-shadow: none;
+}
+
+.timeline-tuner.power-off .track-tick.active {
+  background: #1a2a1a;
+  box-shadow: none;
+}
+
+.timeline-tuner.power-off .thumb-indicator {
+  background: #1a2a1a;
+  box-shadow: none;
+}
+
+.timeline-tuner.power-off .tuner-readout {
+  background: #010201;
+}
+
+.timeline-tuner.power-off .freq-value,
+.timeline-tuner.power-off .freq-unit,
+.timeline-tuner.power-off .era-display {
+  color: var(--color-display-text-dim);
+  text-shadow: none;
+}
+
+.timeline-tuner.power-off .era-marker {
+  color: var(--color-text-dim);
+  text-shadow: none;
+}
+
+.timeline-tuner.power-off .era-marker.active {
+  color: var(--color-text-dim);
+  text-shadow: none;
+}

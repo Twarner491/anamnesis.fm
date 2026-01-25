@@ -1,0 +1,123 @@
+@import './variables.css';
+
+/* === Reset === */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  overflow: hidden;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-label);
+  background: var(--color-bg-darker);
+  color: var(--color-display-text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* Mobile - reduce padding to fit width */
+@media (max-width: 560px) {
+  body {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 400px) {
+  body {
+    padding: 4px;
+  }
+}
+
+/* === Base Elements === */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+input {
+  font-family: inherit;
+}
+
+/* === Utility Classes === */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* === Animations === */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: var(--color-on-air-glow);
+  }
+  50% {
+    box-shadow: 0 0 5px var(--color-led-glow),
+                0 0 10px var(--color-led-glow);
+  }
+}
+
+@keyframes warm-up {
+  0% {
+    opacity: 0;
+    filter: brightness(0);
+  }
+  30% {
+    opacity: 1;
+    filter: brightness(1.5);
+  }
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.95; }
+  51% { opacity: 1; }
+  75% { opacity: 0.97; }
+}
+
+@keyframes dial-snap {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}

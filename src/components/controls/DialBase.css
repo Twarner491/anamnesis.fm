@@ -1,0 +1,156 @@
+.dial-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.dial-label {
+  font-family: var(--font-label);
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--color-metal-shine);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.dial-wrapper {
+  position: relative;
+  width: var(--dial-size);
+  height: calc(var(--dial-size) * 0.7);
+}
+
+/* Size variants */
+.dial-small {
+  --dial-size: 80px;
+}
+
+.dial-medium {
+  --dial-size: 100px;
+}
+
+.dial-large {
+  --dial-size: 140px;
+}
+
+/* Scale markers */
+.dial-scale {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scale-mark {
+  position: absolute;
+  bottom: 50%;
+  left: calc(var(--position) - 0px);
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-metal-highlight);
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.scale-mark:hover {
+  color: var(--color-display-text);
+}
+
+.scale-mark.active {
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow);
+}
+
+/* Dial knob */
+.dial-knob {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--knob-size);
+  height: var(--knob-size);
+  border-radius: 50%;
+  background: var(--gradient-knob);
+  box-shadow: var(--shadow-raised);
+  cursor: grab;
+  transform-origin: center center;
+  transform: translateX(-50%) rotate(var(--rotation, 0));
+  transition: transform 0.1s ease-out;
+  border: 2px solid var(--color-metal-dark);
+}
+
+.dial-knob:active,
+.dial-knob.dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+/* Dial indicator line */
+.dial-indicator {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 3px;
+  height: 12px;
+  background: linear-gradient(
+    180deg,
+    #ccffcc 0%,
+    var(--color-accent) 50%,
+    var(--color-accent) 100%
+  );
+  transform: translateX(-50%);
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(51, 255, 102, 0.7);
+}
+
+/* Grip texture on dial */
+.dial-grip {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    var(--color-metal-medium) 0deg 10deg,
+    var(--color-metal-dark) 10deg 20deg
+  );
+  opacity: 0.3;
+}
+
+/* Current value display */
+.dial-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow);
+  padding: 4px 8px;
+  background: var(--color-display-bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-metal-dark);
+}
+
+@media (max-width: 480px) {
+  .dial-small {
+    --dial-size: 70px;
+    --knob-size: 40px;
+  }
+
+  .dial-medium {
+    --dial-size: 80px;
+    --knob-size: 44px;
+  }
+
+  .dial-large {
+    --dial-size: 100px;
+    --knob-size: 50px;
+  }
+
+  .scale-mark {
+    font-size: 8px;
+  }
+}

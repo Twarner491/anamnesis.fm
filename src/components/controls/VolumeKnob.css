@@ -1,0 +1,98 @@
+.volume-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.volume-label {
+  font-family: var(--font-label);
+  font-size: 9px;
+  font-weight: normal;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+}
+
+.volume-knob {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gradient-knob);
+  box-shadow: var(--shadow-raised);
+  cursor: grab;
+  border: 1px solid var(--color-metal-dark);
+}
+
+.volume-knob:active,
+.volume-knob.dragging {
+  cursor: grabbing;
+}
+
+/* Knob indicator */
+.volume-knob .knob-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 12px;
+  background: linear-gradient(
+    180deg,
+    #ccffcc 0%,
+    var(--color-accent) 50%,
+    var(--color-accent) 100%
+  );
+  transform-origin: center bottom;
+  transform: translate(-50%, -100%) rotate(var(--rotation));
+  border-radius: 1px;
+  box-shadow: 0 0 4px rgba(51, 255, 102, 0.6);
+  transition: transform 0.05s ease-out;
+}
+
+.volume-knob.dragging .knob-indicator {
+  transition: none;
+}
+
+/* Scale marks around the knob */
+.volume-scale {
+  position: absolute;
+  inset: -6px;
+  pointer-events: none;
+}
+
+.scale-mark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 6px;
+  background: var(--color-metal-highlight);
+  transform-origin: center 31px;
+  transform: translate(-50%, -31px) rotate(var(--mark-angle));
+}
+
+.volume-value {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow);
+}
+
+/* Mobile - reduce size slightly */
+@media (max-width: 480px) {
+  .volume-knob {
+    width: 36px;
+    height: 36px;
+  }
+
+  .volume-knob .knob-indicator {
+    height: 10px;
+  }
+
+  .scale-mark {
+    transform-origin: center 24px;
+    transform: translate(-50%, -24px) rotate(var(--mark-angle));
+  }
+}

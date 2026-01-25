@@ -1,0 +1,325 @@
+.display-panel {
+  position: relative;
+  background: var(--color-display-bg);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  box-shadow: var(--shadow-display);
+  border: 2px solid var(--color-metal-dark);
+  min-height: 120px;
+  overflow: hidden;
+}
+
+/* CRT scanline overlay */
+.crt-overlay {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.1) 0px,
+    rgba(0, 0, 0, 0.1) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events: none;
+  z-index: 5;
+}
+
+.crt-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 0%,
+    rgba(0, 20, 0, 0.2) 100%
+  );
+  pointer-events: none;
+}
+
+/* Power off state - content visible but dimmed, no glow */
+.display-panel.display-off {
+  background: #010201;
+}
+
+.display-panel.display-off .frequency-display,
+.display-panel.display-off .era-label,
+.display-panel.display-off .track-title,
+.display-panel.display-off .loading-text,
+.display-panel.display-off .loading-dots,
+.display-panel.display-off .time-current,
+.display-panel.display-off .status-playing {
+  color: var(--color-display-text-dim);
+  text-shadow: none;
+  animation: none;
+}
+
+.display-panel.display-off .era-block {
+  background: rgba(51, 255, 102, 0.02);
+  border-color: rgba(10, 51, 21, 0.5);
+}
+
+.display-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  z-index: 1;
+}
+
+.display-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.display-header {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-display-text-dim);
+}
+
+/* Frequency display - large LED style */
+.frequency-block {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.frequency-display {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: normal;
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow-strong);
+  letter-spacing: 2px;
+  animation: phosphor-flicker 0.1s infinite;
+}
+
+.frequency-display.dim {
+  color: var(--color-display-text-dim);
+  text-shadow: none;
+  animation: none;
+}
+
+.frequency-unit {
+  font-family: var(--font-label);
+  font-size: 11px;
+  color: var(--color-display-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.frequency-unit.dim {
+  opacity: 0.3;
+}
+
+/* Era display - boxed segment */
+.era-block {
+  background: rgba(51, 255, 102, 0.05);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-display-text-dim);
+}
+
+.era-label {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow);
+  letter-spacing: 2px;
+}
+
+/* Track info section */
+.track-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-height: 50px;
+  min-width: 0; /* Prevent flex items from growing past container */
+}
+
+/* Scrolling title container */
+.track-title-container {
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  min-width: 0; /* Allow container to shrink */
+}
+
+.track-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Scrolling animation for long titles */
+.track-title.scrolling {
+  display: inline-block;
+  animation: marquee-scroll 15s linear infinite;
+  padding-right: 50px;
+}
+
+.title-spacer {
+  color: var(--color-display-text-dim);
+}
+
+.track-meta {
+  display: flex;
+  gap: 16px;
+  font-family: var(--font-label);
+  font-size: 11px;
+  color: var(--color-display-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.track-creator,
+.track-date {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+/* Loading state */
+.track-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 0;
+}
+
+.loading-text {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow);
+  letter-spacing: 3px;
+}
+
+.loading-dots {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow);
+  animation: blink-dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes blink-dots {
+  0%, 20% { content: ''; opacity: 0; }
+  25% { content: '.'; opacity: 1; }
+  50% { content: '..'; opacity: 1; }
+  75%, 100% { content: '...'; opacity: 1; }
+}
+
+/* Empty/no signal state */
+.track-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.no-signal-text {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--color-display-text-dim);
+  letter-spacing: 4px;
+  animation: flicker-dim 2s infinite;
+}
+
+@keyframes flicker-dim {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.6; }
+  75% { opacity: 0.35; }
+}
+
+/* Time display - bottom row */
+.display-footer {
+  padding-top: 8px;
+  border-top: 1px solid var(--color-display-text-dim);
+}
+
+.time-display {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--color-display-text-dim);
+  display: flex;
+  gap: 4px;
+  letter-spacing: 1px;
+}
+
+.time-current {
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow);
+}
+
+.time-separator {
+  opacity: 0.4;
+}
+
+/* Status display */
+.status-display {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+
+.status-playing {
+  color: var(--color-display-text);
+  text-shadow: var(--color-display-glow);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.status-loading,
+.status-paused {
+  color: var(--color-display-text-dim);
+  animation: pulse 1s infinite;
+}
+
+/* Phosphor flicker effect */
+@keyframes phosphor-flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 0.99; }
+  94% { opacity: 0.98; }
+  96% { opacity: 1; }
+}
+
+/* Marquee scroll animation */
+@keyframes marquee-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Pulse animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Mobile - keep layout consistent */
+@media (max-width: 480px) {
+  .display-panel {
+    padding: 10px 12px;
+  }
+
+  .frequency-display {
+    font-size: 30px;
+  }
+
+  .era-label {
+    font-size: 18px;
+  }
+}

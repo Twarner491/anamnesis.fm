@@ -1,0 +1,63 @@
+.waveform-container {
+  position: relative;
+  width: 100%;
+  height: 60px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-display-bg);
+  box-shadow: var(--shadow-display);
+  border: 2px solid var(--color-metal-dark);
+}
+
+.waveform-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--color-display-bg);
+}
+
+/* CRT scanlines overlay */
+.waveform-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.1) 0px,
+      rgba(0, 0, 0, 0.1) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    radial-gradient(
+      ellipse at center,
+      transparent 0%,
+      transparent 50%,
+      rgba(0, 20, 0, 0.3) 100%
+    );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Frame border */
+.waveform-frame {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  box-shadow:
+    inset 0 1px 0 rgba(51, 255, 102, 0.03),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Grid lines for oscilloscope effect */
+.waveform-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(51, 255, 102, 0.03) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(51, 255, 102, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+  z-index: 1;
+}

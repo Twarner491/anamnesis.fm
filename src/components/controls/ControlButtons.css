@@ -1,0 +1,240 @@
+.control-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Base button - mechanical keyboard style */
+.control-button {
+  width: var(--button-size);
+  height: var(--button-size);
+  border-radius: 4px;
+  background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
+  border: none;
+  box-shadow:
+    0 4px 0 #0a0a0a,
+    0 5px 3px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+  color: var(--color-metal-highlight);
+  cursor: pointer;
+  transition: all 0.05s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.control-button::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #252525 0%, #181818 100%);
+  z-index: 0;
+}
+
+.control-button:hover:not(.disabled) {
+  background: linear-gradient(180deg, #333333 0%, #222222 100%);
+  color: var(--color-metal-shine);
+}
+
+.control-button:hover:not(.disabled)::before {
+  background: linear-gradient(180deg, #2a2a2a 0%, #1c1c1c 100%);
+}
+
+.control-button:active:not(.disabled) {
+  box-shadow:
+    0 1px 0 #0a0a0a,
+    0 2px 2px rgba(0, 0, 0, 0.3),
+    inset 0 2px 3px rgba(0, 0, 0, 0.4);
+  transform: translateY(3px);
+}
+
+.control-button.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.button-icon {
+  width: 14px;
+  height: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Power button - square with LED indicator style */
+.power-button {
+  background: linear-gradient(180deg, #252525 0%, #151515 100%);
+}
+
+.power-button::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #1a0808;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+
+.power-button.active::after {
+  background: #33ff66;
+  box-shadow:
+    0 0 4px rgba(51, 255, 102, 0.8),
+    0 0 8px rgba(51, 255, 102, 0.4);
+}
+
+.power-button.active {
+  color: var(--color-accent);
+}
+
+.power-button.active .button-icon {
+  filter: drop-shadow(0 0 3px rgba(51, 255, 102, 0.5));
+}
+
+/* Play button - larger, more prominent */
+.play-button {
+  width: calc(var(--button-size) * 1.25);
+  height: calc(var(--button-size) * 1.25);
+  background: linear-gradient(180deg, #2d2d2d 0%, #1d1d1d 100%);
+}
+
+.play-button::before {
+  inset: 3px;
+  background: linear-gradient(180deg, #282828 0%, #1a1a1a 100%);
+}
+
+.play-button.playing {
+  color: var(--color-accent);
+}
+
+.play-button.playing::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--color-accent);
+  box-shadow: 0 0 6px rgba(51, 255, 102, 0.8);
+  z-index: 2;
+}
+
+.play-button.playing .button-icon {
+  filter: drop-shadow(0 0 3px rgba(51, 255, 102, 0.5));
+}
+
+/* Skip button - slightly smaller */
+.skip-button {
+  width: calc(var(--button-size) * 0.95);
+  height: calc(var(--button-size) * 0.95);
+}
+
+/* Loading spinner */
+.loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-metal-highlight);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Queue indicator - mini LCD display style */
+.queue-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 10px;
+  background: var(--color-display-bg);
+  border-radius: 2px;
+  border: 2px solid #0a0a0a;
+  box-shadow:
+    inset 0 0 10px rgba(0, 0, 0, 0.8),
+    0 1px 0 rgba(255, 255, 255, 0.03);
+  margin-left: auto;
+  position: relative;
+}
+
+/* Scanlines on queue display */
+.queue-indicator::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15) 0px,
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  border-radius: 1px;
+}
+
+.queue-count {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--color-display-text);
+  text-shadow: 0 0 8px rgba(51, 255, 102, 0.6);
+  position: relative;
+  z-index: 1;
+}
+
+.queue-label {
+  font-family: var(--font-label);
+  font-size: 7px;
+  color: var(--color-display-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Power off state - dim the queue indicator */
+.control-buttons.power-off .queue-indicator {
+  background: #010201;
+}
+
+.control-buttons.power-off .queue-count {
+  color: var(--color-display-text-dim);
+  text-shadow: none;
+}
+
+@media (max-width: 480px) {
+  .control-buttons {
+    gap: 6px;
+  }
+
+  .control-button {
+    --button-size: 34px;
+  }
+
+  .button-icon {
+    width: 12px;
+    height: 12px;
+  }
+
+  .queue-indicator {
+    padding: 3px 8px;
+  }
+
+  .queue-count {
+    font-size: 14px;
+  }
+}

@@ -1,0 +1,50 @@
+.on-air-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--color-metal-dark);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-inset-dark);
+}
+
+.on-air-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-led-off);
+  transition: all 0.3s ease;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.on-air-indicator.active .on-air-light {
+  background: radial-gradient(
+    circle at 30% 30%,
+    #ff6666 0%,
+    var(--color-led-on) 50%,
+    #cc0000 100%
+  );
+  box-shadow:
+    0 0 10px var(--color-led-glow),
+    0 0 20px var(--color-led-glow),
+    0 0 30px var(--color-led-glow),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.3);
+  animation: glow-pulse 1.5s ease-in-out infinite;
+}
+
+.on-air-text {
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--color-led-off);
+  letter-spacing: 2px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+.on-air-indicator.active .on-air-text {
+  color: var(--color-led-on);
+  text-shadow:
+    0 0 5px var(--color-led-glow),
+    0 0 10px var(--color-led-glow);
+}

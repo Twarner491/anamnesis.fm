@@ -1,0 +1,129 @@
+.radio {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-md);
+}
+
+/* Top section - display and visualizer side by side */
+.radio-top {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-md);
+}
+
+/* Display section */
+.radio-display {
+  min-height: 90px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Side panel with globe and visualizer */
+.radio-side-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+/* Visualizer */
+.radio-visualizer {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* Controls row - buttons, volume, and filter knobs */
+.radio-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-sm) 0;
+}
+
+/* Playback controls group */
+.radio-playback {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+/* Filter knobs group */
+.radio-filters-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+/* Divider line */
+.radio-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-border-light) 20%,
+    var(--color-border-light) 80%,
+    transparent 100%
+  );
+  margin: var(--spacing-sm) 0;
+  opacity: 0.3;
+}
+
+/* Timeline section */
+.radio-timeline {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-sm) 0 0;
+}
+
+/* Always show side panel layout */
+.radio-top {
+  grid-template-columns: 1fr 100px;
+  align-items: stretch;
+}
+
+.radio-side-panel {
+  border-left: 1px solid var(--color-border-dark);
+  padding-left: var(--spacing-md);
+}
+
+/* Mobile - reduce gaps but keep same layout */
+@media (max-width: 480px) {
+  .radio {
+    gap: var(--spacing-sm);
+  }
+
+  .radio-controls-row {
+    gap: var(--spacing-md);
+  }
+
+  .radio-filters-inline {
+    gap: var(--spacing-md);
+  }
+
+  .radio-top {
+    grid-template-columns: 1fr 90px;
+  }
+}
+
+/* Very small screens - further reduce side panel */
+@media (max-width: 380px) {
+  .radio-top {
+    grid-template-columns: 1fr 80px;
+  }
+
+  .radio-side-panel {
+    padding-left: var(--spacing-sm);
+  }
+
+  .radio-controls-row {
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+  }
+
+  .radio-filters-inline {
+    gap: var(--spacing-sm);
+  }
+}

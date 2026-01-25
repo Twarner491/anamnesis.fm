@@ -1,0 +1,24 @@
+---
+import RadioLayout from '../layouts/RadioLayout.astro';
+import RadioCabinet from '../components/radio/RadioCabinet.astro';
+import { Radio } from '../components/Radio';
+---
+
+<RadioLayout title="anamnesis.fm">
+  <main>
+    <RadioCabinet>
+      <Radio client:load />
+    </RadioCabinet>
+  </main>
+</RadioLayout>
+
+<style>
+  main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+</style>

@@ -1,0 +1,77 @@
+---
+// RadioCabinet - Sleek dark container inspired by Winamp/synthesizers
+---
+
+<div class="radio-cabinet">
+  <div class="cabinet-titlebar">
+    <div class="titlebar-left">
+      <span class="logo">anamnesis.fm</span>
+    </div>
+  </div>
+  <div class="cabinet-body">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .radio-cabinet {
+    width: var(--radio-max-width);
+    max-width: 100%;
+    background: var(--color-cabinet-bg);
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px var(--color-border-outer),
+      0 0 0 2px var(--color-border-inner),
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .cabinet-titlebar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 28px;
+    padding: 0 10px;
+    background: linear-gradient(
+      180deg,
+      var(--color-titlebar-top) 0%,
+      var(--color-titlebar-bottom) 100%
+    );
+    border-bottom: 1px solid var(--color-border-dark);
+    user-select: none;
+  }
+
+  .titlebar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--color-text-muted);
+    letter-spacing: 1px;
+  }
+
+  .cabinet-body {
+    padding: 12px;
+    background: var(--color-cabinet-body);
+  }
+
+  @media (max-width: 480px) {
+    .cabinet-titlebar {
+      height: 24px;
+      padding: 0 8px;
+    }
+
+    .logo {
+      font-size: 12px;
+    }
+
+    .cabinet-body {
+      padding: 8px;
+    }
+  }
+</style>
