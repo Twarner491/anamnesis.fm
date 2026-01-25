@@ -1,0 +1,31 @@
+.listener-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.listener-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-dim);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.listener-dot.active {
+  background: var(--color-display-text);
+  box-shadow: 0 0 6px var(--color-display-glow);
+}
+
+.listener-number {
+  color: var(--color-text-dim);
+  transition: color 0.3s ease;
+}
+
+.listener-dot.active + .listener-number {
+  color: var(--color-display-text);
+  text-shadow: 0 0 4px var(--color-display-glow);
+}

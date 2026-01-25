@@ -4,3 +4,10 @@ compatibility_date = "2024-01-01"
 
 [vars]
 CORS_ORIGIN = "https://anamnesis.fm"
+
+# KV namespace for listener tracking
+# Create with: wrangler kv:namespace create "LISTENERS"
+# Then add the id here
+[[kv_namespaces]]
+binding = "LISTENERS"
+id = "1773c44f49c74898a20761719261f477"

@@ -5,12 +5,17 @@ import { PageMeta } from './radio/PageMeta';
 import { TimelineDial } from './controls/TimelineDial';
 import { FilterDial } from './controls/FilterDial';
 import { ControlButtons } from './controls/ControlButtons';
+import { ListenerCount } from './ListenerCount';
 import './Radio.css';
 
 export function Radio() {
   return (
     <div className="radio">
       <PageMeta />
+      {/* Listener count - positioned in titlebar via CSS */}
+      <div className="radio-listener-count">
+        <ListenerCount />
+      </div>
       {/* Top section - display, globe, and visualizer */}
       <div className="radio-top">
         <div className="radio-display">

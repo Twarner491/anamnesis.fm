@@ -19,50 +19,31 @@ export const ERA_RANGES: EraOption[] = [
 // FM frequency display range
 export const FM_RANGE = { min: 88.0, max: 108.0 };
 
-// Location options based on Archive.org coverage field
-// Simplified to country-level with key US cities
+// Location options - continent-based for broader coverage
 export const LOCATIONS: LocationOption[] = [
   { id: 'all', label: 'WORLD', query: null },
-  // Americas
-  { id: 'us', label: 'USA', query: 'United States OR USA OR US OR America' },
-  { id: 'us-ny', label: 'NYC', query: 'New York OR NYC OR WNYC OR WNEW' },
-  { id: 'us-ca', label: 'LA', query: 'Los Angeles OR KCRW OR California' },
-  { id: 'canada', label: 'CAN', query: 'Canada OR Canadian OR CBC' },
-  { id: 'mexico', label: 'MEX', query: 'Mexico OR Mexican' },
-  { id: 'brazil', label: 'BRA', query: 'Brazil OR Brazilian OR Brasil' },
-  // Europe
-  { id: 'uk', label: 'UK', query: 'United Kingdom OR UK OR Britain OR BBC OR England' },
-  { id: 'de', label: 'GER', query: 'Germany OR German OR Deutschland' },
-  { id: 'fr', label: 'FRA', query: 'France OR French OR Paris' },
-  // Africa & Middle East
-  { id: 'africa', label: 'AFR', query: 'Africa OR African OR Morocco OR South Africa OR Kenya' },
-  // Asia & Pacific
-  { id: 'jp', label: 'JPN', query: 'Japan OR Japanese OR Tokyo' },
-  { id: 'au', label: 'AUS', query: 'Australia OR Australian' },
+  { id: 'north-america', label: 'N. AMER', query: 'North America' },
+  { id: 'south-america', label: 'S. AMER', query: 'South America' },
+  { id: 'europe', label: 'EUROPE', query: 'Europe' },
+  { id: 'asia', label: 'ASIA', query: 'Asia' },
+  { id: 'middle-east', label: 'MID EAST', query: 'Middle East' },
+  { id: 'africa', label: 'AFRICA', query: 'Africa' },
 ];
 
 // Genre options based on Archive.org subject field
-// Using broader search terms for better matching
 export const GENRES: GenreOption[] = [
   { id: 'all', label: 'ALL', query: null },
-  // Music genres
-  { id: 'music', label: 'MUSIC', query: 'music OR concert OR live' },
   { id: 'jazz', label: 'JAZZ', query: 'jazz OR bebop OR swing OR big band' },
   { id: 'blues', label: 'BLUES', query: 'blues OR rhythm and blues OR R&B' },
-  { id: 'rock', label: 'ROCK', query: 'rock OR rock and roll OR alternative OR indie' },
+  { id: 'rock', label: 'ROCK', query: 'rock OR rock and roll OR alternative OR indie OR punk' },
   { id: 'hiphop', label: 'HIP-HOP', query: 'hip hop OR hiphop OR hip-hop OR rap' },
   { id: 'soul', label: 'SOUL', query: 'soul OR funk OR motown OR R&B' },
   { id: 'classical', label: 'CLASS', query: 'classical OR symphony OR orchestra OR opera' },
   { id: 'country', label: 'CNTRY', query: 'country OR folk OR bluegrass OR western' },
-  { id: 'world', label: 'WORLD', query: 'world music OR reggae OR latin OR afrobeat' },
-  { id: 'electronic', label: 'ELEC', query: 'electronic OR techno OR house OR EDM OR dance' },
-  // Talk/Spoken word
+  { id: 'electronic', label: 'ELEC', query: 'electronic OR techno OR house OR EDM OR synth' },
   { id: 'news', label: 'NEWS', query: 'news OR newscast OR bulletin OR current affairs' },
-  { id: 'talk', label: 'TALK', query: 'talk OR interview OR discussion OR call-in' },
-  { id: 'drama', label: 'DRAMA', query: 'drama OR theatre OR theater OR radio play OR mystery' },
   { id: 'comedy', label: 'COMEDY', query: 'comedy OR humor OR humour OR funny' },
   { id: 'sports', label: 'SPORT', query: 'sports OR baseball OR football OR basketball' },
-  { id: 'documentary', label: 'DOC', query: 'documentary OR history OR historical' },
 ];
 
 // Archive.org collections to aggregate

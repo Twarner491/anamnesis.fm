@@ -17,6 +17,8 @@ export function FilterDial({ type }: FilterDialProps) {
 
   const dialRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  // Track if we just finished a drag to prevent click from firing
+  const wasDraggingRef = useRef(false);
 
   // Find current index
   const getCurrentIndex = () => {
@@ -27,16 +29,20 @@ export function FilterDial({ type }: FilterDialProps) {
 
   const [currentIndex, setCurrentIndex] = useState(getCurrentIndex());
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    setIsDragging(true);
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  };
-
   // Track the latest index during drag (to avoid React state async issues)
   const latestIndexRef = useRef(currentIndex);
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    setIsDragging(true);
+    wasDraggingRef.current = false; // Reset on new interaction
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging || !dialRef.current) return;
+
+    // Mark that we actually moved (dragged), not just clicked
+    wasDraggingRef.current = true;
 
     const rect = dialRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
@@ -52,7 +58,7 @@ export function FilterDial({ type }: FilterDialProps) {
 
     // Map angle to index
     const step = 360 / options.length;
-    let index = Math.round(angle / step) % options.length;
+    const index = Math.round(angle / step) % options.length;
 
     setCurrentIndex(index);
     latestIndexRef.current = index;
@@ -62,15 +68,24 @@ export function FilterDial({ type }: FilterDialProps) {
     if (!isDragging) return;
     setIsDragging(false);
 
-    // Use ref to get the latest index (avoids React state async issues)
-    const finalIndex = latestIndexRef.current;
-    const option = options[finalIndex];
-    console.log('[FilterDial] Setting', type, 'to:', option.query);
-    setValue(option.query);
+    // Only update value if we actually dragged (moved the pointer)
+    if (wasDraggingRef.current) {
+      const finalIndex = latestIndexRef.current;
+      const option = options[finalIndex];
+      console.log('[FilterDial] Drag complete - Setting', type, 'to:', option.query);
+      setValue(option.query);
+    }
+    // wasDraggingRef stays true until click event processes it
   };
 
-  // Click to cycle through options
+  // Click to cycle through options (only if not dragging)
   const handleClick = () => {
+    // If we just finished dragging, ignore this click
+    if (wasDraggingRef.current) {
+      wasDraggingRef.current = false;
+      return;
+    }
+
     const newIndex = (currentIndex + 1) % options.length;
     setCurrentIndex(newIndex);
     latestIndexRef.current = newIndex;
@@ -97,7 +112,7 @@ export function FilterDial({ type }: FilterDialProps) {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onPointerLeave={handlePointerUp}
-        onClick={!isDragging ? handleClick : undefined}
+        onClick={handleClick}
       >
         <div className="knob-indicator" />
         <div className="knob-ring">

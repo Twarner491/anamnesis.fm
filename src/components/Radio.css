@@ -2,6 +2,15 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--spacing-md);
+  position: relative;
+}
+
+/* Listener count - positioned in the titlebar area */
+.radio-listener-count {
+  position: absolute;
+  top: -32px; /* Move up into titlebar */
+  right: 10px;
+  z-index: 10;
 }
 
 /* Top section - display and visualizer side by side */
@@ -93,6 +102,11 @@
 @media (max-width: 480px) {
   .radio {
     gap: var(--spacing-sm);
+  }
+
+  .radio-listener-count {
+    top: -28px; /* Adjust for smaller titlebar */
+    right: 8px;
   }
 
   .radio-controls-row {

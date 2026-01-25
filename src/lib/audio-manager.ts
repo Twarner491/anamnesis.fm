@@ -25,6 +25,7 @@ class AudioManager {
   private isFetching = false;
   private consecutiveErrors = 0;
   private maxConsecutiveErrors = 5;
+  private isAudioPrimed = false;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -323,6 +324,12 @@ class AudioManager {
   async toggle() {
     if (!$isPoweredOn.get()) return;
 
+    // Initialize audio system if not already done (must happen during user gesture on mobile)
+    if (!this.isInitialized) {
+      this.initializeAnalyser();
+      this.isInitialized = true;
+    }
+
     // Always try to resume AudioContext on user interaction (mobile requirement)
     if (this.audioContext?.state === 'suspended') {
       try {
@@ -332,12 +339,35 @@ class AudioManager {
       }
     }
 
+    // Prime audio element for mobile Safari (must happen during user gesture)
+    // This unlocks the audio element for future programmatic playback
+    if (this.audio && !this.isAudioPrimed) {
+      try {
+        // Create a tiny silent audio to prime playback
+        const originalSrc = this.audio.src;
+        this.audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+        await this.audio.play();
+        this.audio.pause();
+        this.audio.src = originalSrc;
+        this.isAudioPrimed = true;
+        console.log('Audio element primed for mobile playback');
+      } catch (e) {
+        // Mark as primed anyway to avoid repeated attempts
+        this.isAudioPrimed = true;
+        console.log('Audio priming skipped:', e);
+      }
+    }
+
     if ($isPaused.get()) {
       await this.resume();
     } else if ($isPlaying.get()) {
       this.pause();
     } else {
-      // Not playing anything, try to play from queue
+      // Not playing anything - show loading state immediately for user feedback
+      const queue = $queue.get();
+      if (queue.length === 0) {
+        setLoading(true);
+      }
       await this.playNext();
     }
   }
@@ -503,10 +533,20 @@ class AudioManager {
           if (!currentlyPlaying && $isPoweredOn.get()) {
             this.playNext();
           }
+        } else {
+          // No tracks found after filtering - reset loading state
+          console.log('No valid tracks found, resetting loading state');
+          setLoading(false);
         }
+      } else {
+        // No items found at all - reset loading state
+        console.log('No items found from search, resetting loading state');
+        setLoading(false);
       }
     } catch (e) {
       console.error('Failed to fetch tracks:', e);
+      // Reset loading state on error
+      setLoading(false);
     } finally {
       this.isFetching = false;
     }
