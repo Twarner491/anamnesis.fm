@@ -7,19 +7,13 @@ import './Globe.css';
 
 // Map location IDs to longitude for globe rotation
 const LOCATION_COORDS: Record<string, number> = {
-  'all': 0,       // Center on Atlantic
-  'us': -95,      // Central US
-  'us-ny': -74,   // New York
-  'us-ca': -118,  // Los Angeles
-  'canada': -106, // Canada center
-  'mexico': -102, // Mexico
-  'brazil': -55,  // Brazil
-  'uk': 0,        // UK
-  'de': 10,       // Germany
-  'fr': 2,        // France
-  'africa': 20,   // Africa
-  'jp': 139,      // Japan
-  'au': 134,      // Australia
+  'all': 0,             // Center on Atlantic
+  'north-america': -100, // Central North America
+  'south-america': -60,  // Central South America
+  'europe': 10,          // Central Europe
+  'asia': 100,           // Central Asia
+  'middle-east': 45,     // Middle East
+  'africa': 20,          // Central Africa
 };
 
 export function Globe() {
