@@ -181,8 +181,17 @@
 }
 
 /* Mobile dimension overrides */
+@media (max-width: 560px) {
+  :root {
+    --radio-max-width: 100%;
+    --dial-size: 80px;
+  }
+}
+
 @media (max-width: 400px) {
   :root {
+    --radio-max-width: 100%;
+    --dial-size: 70px;
     --knob-size: 36px;
     --button-size: 32px;
     --spacing-sm: 4px;

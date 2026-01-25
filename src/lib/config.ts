@@ -16,6 +16,9 @@ export function apiUrl(path: string): string {
     return `/${cleanPath}`;
   }
 
+  // Remove trailing slash from base URL to avoid double slashes
+  const cleanBase = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+
   // Otherwise, use the configured API URL
-  return `${API_BASE_URL}/${cleanPath}`;
+  return `${cleanBase}/${cleanPath}`;
 }

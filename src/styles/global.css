@@ -41,6 +41,8 @@ body {
 @media (max-width: 400px) {
   body {
     padding: 4px;
+    align-items: flex-start;
+    padding-top: 8px;
   }
 }
 

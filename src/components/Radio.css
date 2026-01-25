@@ -111,7 +111,7 @@
 /* Very small screens - further reduce side panel */
 @media (max-width: 380px) {
   .radio-top {
-    grid-template-columns: 1fr 80px;
+    grid-template-columns: 1fr 70px;
   }
 
   .radio-side-panel {
@@ -121,9 +121,26 @@
   .radio-controls-row {
     gap: var(--spacing-sm);
     flex-wrap: wrap;
+    justify-content: center;
   }
 
   .radio-filters-inline {
     gap: var(--spacing-sm);
+  }
+}
+
+/* Extra small screens - stack layout */
+@media (max-width: 340px) {
+  .radio-top {
+    grid-template-columns: 1fr;
+  }
+
+  .radio-side-panel {
+    border-left: none;
+    border-top: 1px solid var(--color-border-dark);
+    padding-left: 0;
+    padding-top: var(--spacing-sm);
+    flex-direction: row;
+    justify-content: center;
   }
 }
