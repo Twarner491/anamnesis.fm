@@ -804,7 +804,7 @@ class AudioManager {
           const tracks: Track[] = items.map((item: any) => ({
             identifier: item.identifier,
             title: item.title,
-            creator: item.creator || 'Penguin Radio',
+            creator: 'Penguins of Antarctica',
             duration: item.duration?.toString(),
             filename: '', // Not used for SoundCloud
             soundcloudId: item.soundcloudId,

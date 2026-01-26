@@ -856,7 +856,7 @@ async function handlePenguinRadio(
     const tracks = playlist.tracks.map((track: SoundCloudTrack) => ({
       identifier: `soundcloud-${track.id}`,
       title: track.title,
-      creator: track.user?.username || 'Penguin Radio',
+      creator: 'Penguins of Antarctica',
       duration: Math.floor(track.duration / 1000), // Convert ms to seconds
       // Store the track ID for streaming
       soundcloudId: track.id,
