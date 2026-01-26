@@ -830,6 +830,23 @@ interface SoundCloudPlaylist {
   title: string;
 }
 
+// Fetch full track details from SoundCloud (for stub tracks missing titles)
+async function fetchFullTrackDetails(trackId: number): Promise<SoundCloudTrack | null> {
+  try {
+    const trackUrl = `https://api-v2.soundcloud.com/tracks/${trackId}?client_id=${SOUNDCLOUD_CLIENT_ID}`;
+    const response = await fetch(trackUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; anamnesis.fm/1.0)',
+        'Accept': 'application/json',
+      },
+    });
+    if (!response.ok) return null;
+    return await response.json() as SoundCloudTrack;
+  } catch {
+    return null;
+  }
+}
+
 // Fetch tracks from the Penguin Radio SoundCloud playlist
 async function handlePenguinRadio(
   corsHeaders: Record<string, string>
@@ -853,15 +870,29 @@ async function handlePenguinRadio(
     const playlist = await response.json() as SoundCloudPlaylist;
 
     // Transform tracks to our format
-    const tracks = playlist.tracks.map((track: SoundCloudTrack) => ({
-      identifier: `soundcloud-${track.id}`,
-      title: track.title,
-      creator: 'Penguins of Antarctica',
-      duration: Math.floor(track.duration / 1000), // Convert ms to seconds
-      // Store the track ID for streaming
-      soundcloudId: track.id,
-      isPenguinRadio: true,
-    }));
+    // SoundCloud sometimes returns "stub" objects with only ID - fetch full details for those
+    const trackPromises = playlist.tracks
+      .filter((track: SoundCloudTrack) => track.id)
+      .map(async (track: SoundCloudTrack, index: number) => {
+        // If track is missing title, fetch full details
+        let fullTrack = track;
+        if (!track.title) {
+          const fetched = await fetchFullTrackDetails(track.id);
+          if (fetched) fullTrack = fetched;
+        }
+
+        return {
+          identifier: `soundcloud-${fullTrack.id}`,
+          title: fullTrack.title || `Penguin Track ${index + 1}`,
+          creator: 'Penguins of Antarctica',
+          duration: Math.floor((fullTrack.duration || 0) / 1000), // Convert ms to seconds
+          // Store the track ID for streaming
+          soundcloudId: fullTrack.id,
+          isPenguinRadio: true,
+        };
+      });
+
+    const tracks = await Promise.all(trackPromises);
 
     // Shuffle the tracks for variety
     const shuffledTracks = shuffleArray(tracks);

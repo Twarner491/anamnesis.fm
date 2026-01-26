@@ -801,15 +801,17 @@ class AudioManager {
         if (isPenguinRadio) {
           // Penguin Radio tracks are ready to play - no metadata fetch needed
           console.log('🐧 Adding Penguin Radio tracks to queue');
-          const tracks: Track[] = items.map((item: any) => ({
-            identifier: item.identifier,
-            title: item.title,
-            creator: 'Penguins of Antarctica',
-            duration: item.duration?.toString(),
-            filename: '', // Not used for SoundCloud
-            soundcloudId: item.soundcloudId,
-            isPenguinRadio: true,
-          }));
+          const tracks: Track[] = items
+            .filter((item: any) => item.soundcloudId)
+            .map((item: any, index: number) => ({
+              identifier: item.identifier,
+              title: item.title || `Penguin Track ${index + 1}`,
+              creator: 'Penguins of Antarctica',
+              duration: item.duration?.toString(),
+              filename: '', // Not used for SoundCloud
+              soundcloudId: item.soundcloudId,
+              isPenguinRadio: true,
+            }));
 
           addToQueue(tracks);
 
