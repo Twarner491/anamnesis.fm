@@ -305,7 +305,16 @@ class AudioManager {
         genre: $genre.get()
       });
 
-      // Debounce to avoid multiple rapid retunes
+      // Show loading state IMMEDIATELY for user feedback
+      // Don't wait for the debounce - user should see "TUNING" right away
+      setLoading(true);
+
+      // Also stop current playback immediately so user sees the change
+      if (this.audio) {
+        this.audio.pause();
+      }
+
+      // Debounce the actual retune to avoid multiple rapid fetches
       if (retuneTimeout) clearTimeout(retuneTimeout);
       retuneTimeout = setTimeout(() => {
         this.retune();
