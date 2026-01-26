@@ -805,11 +805,11 @@ async function handleListenerCount(
 // SoundCloud playlist for the Antarctica location
 // ============================================
 
-const PENGUIN_RADIO_PLAYLIST_URL = 'https://soundcloud.com/teddy-warner-910871598/sets/antartica-fm/s-KAZ0Aou8bOW';
+const PENGUIN_RADIO_PLAYLIST_URL = 'https://soundcloud.com/teddy-warner-910871598/sets/antartica-fm';
 
 // SoundCloud client_id - extracted from their public pages
 // This may need to be updated if SoundCloud changes their public client_id
-const SOUNDCLOUD_CLIENT_ID = 'a3e059563d7fd3372b49b37f00a00bcf';
+const SOUNDCLOUD_CLIENT_ID = 'nIjtjiYnjkOhMyh5xrbqEW12DxeJVnic';
 
 interface SoundCloudTrack {
   id: number;
