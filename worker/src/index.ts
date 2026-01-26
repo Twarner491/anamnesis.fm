@@ -404,55 +404,11 @@ async function handleSearch(
 
     // Get pre-filtered collections based on filters
     const collections = getFilteredCollections(era, location, genre);
+    const pageNum = parseInt(page, 10) || 1;
 
-  // Shuffle which collections we query - pick a random subset if we have many
-  let queryCollections = collections;
-  if (collections.length > 10) {
-    // Shuffle and take a random subset (5-15 collections) for variety
-    const shuffledCollections = shuffleArray([...collections]);
-    const subsetSize = 5 + Math.floor(Math.random() * 10);
-    queryCollections = shuffledCollections.slice(0, Math.min(subsetSize, collections.length));
-  }
-
-  console.log(`Searching ${queryCollections.length} of ${collections.length} collections (filtered from ${ALL_COLLECTIONS.length})`);
-
-  // Build Archive.org query with filtered/randomized collections
-  const collectionQuery = queryCollections.map((c) => `collection:${c}`).join(' OR ');
-  let query = `(${collectionQuery})`;
-
-  // PRIORITY 1: Era/Year filter is STRICT - always applied exactly
-  if (era) {
-    const [start, end] = era.split('-');
-    if (start && end) {
-      query += ` AND year:[${start} TO ${end}]`;
-    }
-  }
-
-  // PRIORITY 2: Location filter (still apply for precision within pre-filtered collections)
-  if (location) {
-    query += ` AND (coverage:(${location}) OR title:(${location}) OR description:(${location}) OR creator:(${location}))`;
-  }
-
-  // PRIORITY 3: Genre filter
-  if (genre) {
-    query += ` AND (subject:(${genre}) OR title:(${genre}) OR description:(${genre}))`;
-  }
-
-  // Aggressive randomization to avoid repeated results
-  const rows = 300; // Fetch more for better variety
-  const pageNum = parseInt(page, 10) || 1;
-
-  // Use highly variable random offset (0-2000) to ensure different results each time
-  const randomOffset = Math.floor(Math.random() * 2000);
-  const startIndex = ((pageNum - 1) * rows) + randomOffset;
-
-  // Randomly select sort order - heavily weight towards 'random' for maximum variety
-  // 50% chance of random sort, 50% split among other options
-  let randomSort: string;
-  if (Math.random() < 0.5) {
-    randomSort = 'random'; // Archive.org's random sort - most variety
-  } else {
-    const otherSorts = [
+    // MULTI-QUERY APPROACH: Make 3 parallel queries with different sorts/offsets
+    // This gives us different "slices" of Archive.org's data for better diversity
+    const sortOptions = [
       'date desc',
       'date asc',
       'downloads desc',
@@ -463,92 +419,168 @@ async function handleSearch(
       'titleSorter desc',
       'publicdate desc',
       'publicdate asc',
+      'random',
     ];
-    randomSort = otherSorts[Math.floor(Math.random() * otherSorts.length)];
-  }
 
-  const params = new URLSearchParams();
-  params.set('q', query);
-  params.append('fl[]', 'identifier');
-  params.append('fl[]', 'title');
-  params.append('fl[]', 'date');
-  params.append('fl[]', 'year');
-  params.append('fl[]', 'creator');
-  params.append('fl[]', 'coverage');
-  params.append('fl[]', 'subject');
-  params.append('fl[]', 'description');
-  params.set('sort[]', randomSort);
-  params.set('rows', String(rows));
-  params.set('start', String(startIndex));
-  params.set('output', 'json');
+    // Pick 3 different sort strategies
+    const shuffledSorts = shuffleArray([...sortOptions]);
+    const selectedSorts = shuffledSorts.slice(0, 3);
 
-  const archiveUrl = `https://archive.org/advancedsearch.php?${params.toString()}`;
+    // Build the base query (same for all requests)
+    const buildBaseQuery = (queryCollections: string[]) => {
+      const collectionQuery = queryCollections.map((c) => `collection:${c}`).join(' OR ');
+      let query = `(${collectionQuery})`;
 
-  const response = await fetch(archiveUrl, {
-    headers: { 'User-Agent': 'anamnesis.fm/1.0' },
-  });
+      // PRIORITY 1: Era/Year filter is STRICT - always applied exactly
+      if (era) {
+        const [start, end] = era.split('-');
+        if (start && end) {
+          query += ` AND year:[${start} TO ${end}]`;
+        }
+      }
 
-  if (!response.ok) {
-    throw new Error(`Archive.org API error: ${response.status}`);
-  }
+      // PRIORITY 2: Location filter
+      if (location) {
+        query += ` AND (coverage:(${location}) OR title:(${location}) OR description:(${location}) OR creator:(${location}))`;
+      }
 
-  const data = await response.json() as {
-    response?: { docs?: unknown[]; numFound?: number };
-  };
+      // PRIORITY 3: Genre filter
+      if (genre) {
+        query += ` AND (subject:(${genre}) OR title:(${genre}) OR description:(${genre}))`;
+      }
 
-  let items = (data.response?.docs || []).filter(
-    (item): item is { identifier: string; creator?: string; title?: string } =>
-      typeof item === 'object' && item !== null && 'identifier' in item
-  );
+      return query;
+    };
 
-  // Filter out recently played tracks to ensure variety
-  if (excludeIds.size > 0) {
-    const beforeCount = items.length;
-    items = items.filter(item => !excludeIds.has(item.identifier));
-    console.log(`Filtered out ${beforeCount - items.length} recently played tracks`);
-  }
+    // Create 3 parallel fetch requests with different collection subsets and sorts
+    const fetchPromises = selectedSorts.map(async (sortOrder, index) => {
+      // Each query gets a different random subset of collections
+      let queryCollections = collections;
+      if (collections.length > 8) {
+        const shuffledCollections = shuffleArray([...collections]);
+        const subsetSize = 5 + Math.floor(Math.random() * 8);
+        queryCollections = shuffledCollections.slice(0, Math.min(subsetSize, collections.length));
+      }
 
-  // Deduplicate by creator/show to ensure variety across different shows
-  // Instead of getting many episodes from the same show, limit to 2 per creator
-  const itemsByCreator = new Map<string, typeof items>();
-  for (const item of items) {
-    // Use creator if available, otherwise try to extract show name from identifier/title
-    const creator = item.creator ||
-                    item.identifier?.split('-')[0] ||
-                    item.title?.split(' - ')[0] ||
-                    'unknown';
-    const key = creator.toLowerCase().trim();
+      const query = buildBaseQuery(queryCollections);
+      const rows = 150; // Fetch 150 per query, 3 queries = up to 450 items
 
-    if (!itemsByCreator.has(key)) {
-      itemsByCreator.set(key, []);
+      // Each query uses a different offset range to hit different parts of the data
+      const baseOffset = index * 500; // 0, 500, 1000
+      const randomOffset = sortOrder === 'random' ? 0 : baseOffset + Math.floor(Math.random() * 500);
+      const startIndex = ((pageNum - 1) * rows) + randomOffset;
+
+      const params = new URLSearchParams();
+      params.set('q', query);
+      params.append('fl[]', 'identifier');
+      params.append('fl[]', 'title');
+      params.append('fl[]', 'date');
+      params.append('fl[]', 'year');
+      params.append('fl[]', 'creator');
+      params.append('fl[]', 'coverage');
+      params.append('fl[]', 'subject');
+      params.append('fl[]', 'description');
+      params.set('sort[]', sortOrder);
+      params.set('rows', String(rows));
+      params.set('start', String(startIndex));
+      params.set('output', 'json');
+
+      const archiveUrl = `https://archive.org/advancedsearch.php?${params.toString()}`;
+
+      try {
+        const response = await fetch(archiveUrl, {
+          headers: { 'User-Agent': 'anamnesis.fm/1.0' },
+        });
+
+        if (!response.ok) {
+          console.error(`Query ${index} failed: ${response.status}`);
+          return { items: [], numFound: 0 };
+        }
+
+        const data = await response.json() as {
+          response?: { docs?: unknown[]; numFound?: number };
+        };
+
+        return {
+          items: (data.response?.docs || []).filter(
+            (item): item is { identifier: string; creator?: string; title?: string } =>
+              typeof item === 'object' && item !== null && 'identifier' in item
+          ),
+          numFound: data.response?.numFound || 0,
+        };
+      } catch (e) {
+        console.error(`Query ${index} error:`, e);
+        return { items: [], numFound: 0 };
+      }
+    });
+
+    // Wait for all queries to complete
+    const results = await Promise.all(fetchPromises);
+
+    console.log(`Multi-query results: ${results.map((r, i) => `Q${i}=${r.items.length}`).join(', ')}`);
+
+    // Merge and deduplicate results by identifier
+    const seenIds = new Set<string>();
+    let allItems: { identifier: string; creator?: string; title?: string }[] = [];
+
+    for (const result of results) {
+      for (const item of result.items) {
+        if (!seenIds.has(item.identifier)) {
+          seenIds.add(item.identifier);
+          allItems.push(item);
+        }
+      }
     }
-    itemsByCreator.get(key)!.push(item);
-  }
 
-  // Take up to 2 items per creator, then shuffle
-  const diverseItems: typeof items = [];
-  for (const [_, creatorItems] of itemsByCreator) {
-    // Shuffle items within each creator group and take up to 2
-    const shuffledCreatorItems = shuffleArray(creatorItems);
-    diverseItems.push(...shuffledCreatorItems.slice(0, 2));
-  }
+    // Filter out recently played tracks
+    if (excludeIds.size > 0) {
+      const beforeCount = allItems.length;
+      allItems = allItems.filter(item => !excludeIds.has(item.identifier));
+      console.log(`Filtered out ${beforeCount - allItems.length} recently played tracks`);
+    }
 
-  // Shuffle the diverse results for final randomness
-  items = shuffleArray(diverseItems);
+    // Deduplicate by creator/show for variety across different shows
+    const itemsByCreator = new Map<string, typeof allItems>();
+    for (const item of allItems) {
+      const creator = item.creator ||
+                      item.identifier?.split('-')[0] ||
+                      item.title?.split(' - ')[0] ||
+                      'unknown';
+      const key = creator.toLowerCase().trim();
+
+      if (!itemsByCreator.has(key)) {
+        itemsByCreator.set(key, []);
+      }
+      itemsByCreator.get(key)!.push(item);
+    }
+
+    // Take 1 item per creator for maximum variety
+    const diverseItems: typeof allItems = [];
+    for (const [_, creatorItems] of itemsByCreator) {
+      const shuffledCreatorItems = shuffleArray(creatorItems);
+      diverseItems.push(shuffledCreatorItems[0]);
+    }
+
+    // Final shuffle
+    const items = shuffleArray(diverseItems);
+
+    const totalFound = Math.max(...results.map(r => r.numFound));
+
+    console.log(`Search: era=${era}, location=${location}, genre=${genre} -> ${items.length} diverse items from ${allItems.length} unique`);
 
     return new Response(
       JSON.stringify({
         items,
         page: pageNum,
         count: items.length,
-        total: data.response?.numFound || 0,
-        collectionsSearched: queryCollections.length,
+        total: totalFound,
+        collectionsSearched: collections.length,
       }),
       {
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate', // No caching for variety
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
         },
       }
     );

@@ -352,6 +352,9 @@ class AudioManager {
     }, 100);
   }
 
+  // Flag to force auto-play after fetching (set during retune)
+  private shouldAutoPlayAfterFetch = false;
+
   // Retune: clear queue and fetch new tracks based on current filters
   async retune() {
     if (!$isPoweredOn.get()) {
@@ -389,6 +392,9 @@ class AudioManager {
     // Reset fetching flag and error counter to allow fresh start
     this.isFetching = false;
     this.consecutiveErrors = 0;
+
+    // Set flag to auto-play after fetching (retune should always start playing)
+    this.shouldAutoPlayAfterFetch = true;
 
     // Fetch fresh tracks with new filters
     await this.fetchMoreTracks();
@@ -969,9 +975,10 @@ class AudioManager {
 
           addToQueue(tracks);
 
-          // Start playing if not currently playing
+          // Start playing if not currently playing OR if retune requested auto-play
           const currentlyPlaying = $isPlaying.get() || $isPaused.get();
-          if (!currentlyPlaying && $isPoweredOn.get()) {
+          if ((!currentlyPlaying || this.shouldAutoPlayAfterFetch) && $isPoweredOn.get()) {
+            this.shouldAutoPlayAfterFetch = false;
             this.playNext();
           }
         } else {
@@ -1037,26 +1044,30 @@ class AudioManager {
           if (tracks.length > 0) {
             addToQueue(tracks);
 
-            // Start playing if not currently playing
+            // Start playing if not currently playing OR if retune requested auto-play
             const currentlyPlaying = $isPlaying.get() || $isPaused.get();
-            if (!currentlyPlaying && $isPoweredOn.get()) {
+            if ((!currentlyPlaying || this.shouldAutoPlayAfterFetch) && $isPoweredOn.get()) {
+              this.shouldAutoPlayAfterFetch = false;
               this.playNext();
             }
           } else {
             // No tracks found after filtering - reset loading state
             console.log('No valid tracks found, resetting loading state');
             setLoading(false);
+            this.shouldAutoPlayAfterFetch = false;
           }
         }
       } else {
         // No items found at all - reset loading state
         console.log('No items found from search, resetting loading state');
         setLoading(false);
+        this.shouldAutoPlayAfterFetch = false;
       }
     } catch (e) {
       console.error('Failed to fetch tracks:', e);
       // Reset loading state on error
       setLoading(false);
+      this.shouldAutoPlayAfterFetch = false;
     } finally {
       this.isFetching = false;
     }
