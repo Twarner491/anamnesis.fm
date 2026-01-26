@@ -294,6 +294,14 @@
   animation: pulse 1s infinite;
 }
 
+.status-error {
+  color: #ff6b6b;
+  text-shadow: 0 0 8px rgba(255, 107, 107, 0.5);
+  font-size: 11px;
+  letter-spacing: 1px;
+  animation: pulse 1s infinite;
+}
+
 /* Phosphor flicker effect */
 @keyframes phosphor-flicker {
   0%, 100% { opacity: 1; }

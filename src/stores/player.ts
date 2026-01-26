@@ -10,6 +10,9 @@ export const $isPlaying = atom(false);
 export const $isPaused = atom(false);
 export const $isLoading = atom(false);
 
+// Error state for user-visible feedback
+export const $playbackError = atom<string | null>(null);
+
 // Progress tracking
 export const $progress = atom(0); // 0-1
 export const $duration = atom(0); // seconds
@@ -87,4 +90,21 @@ export function powerOff() {
   $isPlaying.set(false);
   $isPaused.set(false);
   $currentTrack.set(null);
+  $playbackError.set(null);
+}
+
+export function setPlaybackError(error: string | null) {
+  $playbackError.set(error);
+  // Auto-clear error after 5 seconds
+  if (error) {
+    setTimeout(() => {
+      if ($playbackError.get() === error) {
+        $playbackError.set(null);
+      }
+    }, 5000);
+  }
+}
+
+export function clearPlaybackError() {
+  $playbackError.set(null);
 }

@@ -9,6 +9,8 @@ import {
   setLoading,
   setProgress,
   setCurrentTrack,
+  setPlaybackError,
+  clearPlaybackError,
 } from '../stores/player';
 import { $queue, skipToNext, addToHistory, addToQueue, clearQueue } from '../stores/queue';
 import { $era, $location, $genre } from '../stores/filters';
@@ -28,22 +30,36 @@ class AudioManager {
   private maxConsecutiveErrors = 5;
   private isAudioPrimed = false;
   private isIOS = false;
+  private isAndroid = false;
+  private isMobile = false;
 
-  // Detect iOS for special handling (AudioContext issues with background playback)
-  private detectIOS(): boolean {
-    if (typeof window === 'undefined') return false;
+  // Detect mobile platforms for special handling
+  private detectPlatform(): { isIOS: boolean; isAndroid: boolean; isMobile: boolean } {
+    if (typeof window === 'undefined') return { isIOS: false, isAndroid: false, isMobile: false };
     const ua = window.navigator.userAgent;
-    // iPad on iOS 13+ reports as Mac, so check for touch support
+
+    // iOS detection - iPad on iOS 13+ reports as Mac, so check for touch support
     const isIPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
     const isIPhone = /iPhone/.test(ua);
     const isIPod = /iPod/.test(ua);
-    return isIPad || isIPhone || isIPod;
+    const isIOS = isIPad || isIPhone || isIPod;
+
+    // Android detection
+    const isAndroid = /Android/.test(ua);
+
+    // General mobile detection
+    const isMobile = isIOS || isAndroid || /webOS|BlackBerry|Opera Mini|IEMobile/i.test(ua);
+
+    return { isIOS, isAndroid, isMobile };
   }
 
   constructor() {
     if (typeof window !== 'undefined') {
-      this.isIOS = this.detectIOS();
-      console.log('AudioManager: iOS detected =', this.isIOS);
+      const platform = this.detectPlatform();
+      this.isIOS = platform.isIOS;
+      this.isAndroid = platform.isAndroid;
+      this.isMobile = platform.isMobile;
+      console.log('AudioManager: Platform detected =', { iOS: this.isIOS, Android: this.isAndroid, Mobile: this.isMobile });
 
       this.audio = new Audio();
       this.audio.crossOrigin = 'anonymous';
@@ -489,6 +505,62 @@ class AudioManager {
     return this.analyser;
   }
 
+  // Wait for audio to be ready to play (canplay event) with timeout
+  private waitForCanPlay(timeoutMs: number = 15000): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.audio) {
+        reject(new Error('No audio element'));
+        return;
+      }
+
+      // If already ready, resolve immediately
+      if (this.audio.readyState >= 3) { // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA
+        resolve();
+        return;
+      }
+
+      const audio = this.audio;
+      let resolved = false;
+
+      const cleanup = () => {
+        audio.removeEventListener('canplay', onCanPlay);
+        audio.removeEventListener('canplaythrough', onCanPlay);
+        audio.removeEventListener('error', onError);
+        clearTimeout(timeoutId);
+      };
+
+      const onCanPlay = () => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        console.log('[Mobile] Audio canplay event fired');
+        resolve();
+      };
+
+      const onError = (e: Event) => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        const audioError = (e.target as HTMLAudioElement)?.error;
+        console.error('[Mobile] Audio error during load:', audioError?.message || 'Unknown error');
+        reject(new Error(audioError?.message || 'Audio load failed'));
+      };
+
+      const timeoutId = setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        console.warn('[Mobile] Audio load timeout after', timeoutMs, 'ms');
+        // Don't reject on timeout - try to play anyway, might work
+        resolve();
+      }, timeoutMs);
+
+      audio.addEventListener('canplay', onCanPlay);
+      audio.addEventListener('canplaythrough', onCanPlay);
+      audio.addEventListener('error', onError);
+    });
+  }
+
   async play(track: Track) {
     if (!this.audio || !$isPoweredOn.get()) return;
 
@@ -497,9 +569,15 @@ class AudioManager {
       console.error('Too many consecutive playback errors, stopping');
       setLoading(false);
       setPlaybackState(false, false);
+      setPlaybackError('Unable to play audio. Tap play to try again.');
       this.consecutiveErrors = 0; // Reset for next user interaction
       return;
     }
+
+    // Clear any previous error when starting fresh playback
+    clearPlaybackError();
+
+    console.log('[Play] Starting playback for:', track.title, this.isMobile ? '(mobile)' : '(desktop)');
 
     // Resume AudioContext BEFORE attempting playback (critical for mobile)
     if (this.audioContext?.state === 'suspended') {
@@ -518,7 +596,7 @@ class AudioManager {
     }
 
     setCurrentTrack(track);
-    setPlaybackState(true, false);
+    setLoading(true); // Show loading while we prepare
 
     // Update lock screen / notification metadata
     this.updateMediaSessionMetadata(track);
@@ -533,36 +611,72 @@ class AudioManager {
       const encodedFilename = encodeURIComponent(track.filename);
       proxyUrl = apiUrl(`api/stream/${track.identifier}/${encodedFilename}`);
     }
+
+    console.log('[Play] Loading audio from:', proxyUrl.substring(0, 80) + '...');
     this.audio.src = proxyUrl;
 
     // Load the audio first (helps on mobile)
     this.audio.load();
 
     try {
+      // On mobile, wait for canplay event before attempting to play
+      // This is critical for reliable playback on iOS and Android
+      if (this.isMobile) {
+        console.log('[Mobile] Waiting for audio to be ready...');
+        await this.waitForCanPlay(15000); // 15 second timeout for slow mobile connections
+      }
+
+      // Now attempt to play
       await this.audio.play();
 
-      // Reset error counter on success
+      // Success!
+      console.log('[Play] Playback started successfully');
+      setPlaybackState(true, false);
       this.consecutiveErrors = 0;
     } catch (e: any) {
-      console.error('Playback failed:', e);
+      console.error('[Play] Playback failed:', e.name, e.message);
 
       // Check if it's a user gesture error (NotAllowedError)
       if (e.name === 'NotAllowedError') {
-        console.log('Playback blocked - needs user gesture. Will retry on next tap.');
+        console.log('[Play] Blocked - needs user gesture. Will retry on next tap.');
         // Don't count as error - user just needs to tap again
         setPlaybackState(false, false);
         setLoading(false);
+        setPlaybackError('Tap play to start audio');
         return;
+      }
+
+      // Check for network errors on mobile - retry once with a delay
+      if (this.isMobile && this.consecutiveErrors === 0 &&
+          (e.name === 'AbortError' || e.name === 'NotSupportedError' || e.message?.includes('load'))) {
+        console.log('[Mobile] Network issue detected, retrying in 1 second...');
+        this.consecutiveErrors++;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Retry by calling play again
+        this.audio.load();
+        try {
+          await this.waitForCanPlay(10000);
+          await this.audio.play();
+          console.log('[Mobile] Retry successful!');
+          setPlaybackState(true, false);
+          this.consecutiveErrors = 0;
+          return;
+        } catch (retryError) {
+          console.error('[Mobile] Retry also failed:', retryError);
+        }
       }
 
       this.consecutiveErrors++;
 
       // Only try next track if we haven't hit the limit
       if (this.consecutiveErrors < this.maxConsecutiveErrors) {
+        console.log('[Play] Trying next track in 1 second...');
         setTimeout(() => this.playNext(), 1000);
       } else {
-        console.error('Max errors reached, stopping playback attempts');
+        console.error('[Play] Max errors reached, stopping playback attempts');
         setLoading(false);
+        setPlaybackState(false, false);
+        setPlaybackError('Unable to play audio. Tap play to try again.');
       }
     }
   }

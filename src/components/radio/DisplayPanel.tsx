@@ -1,6 +1,6 @@
 import { useStore } from '@nanostores/react';
 import { useRef, useEffect, useState } from 'react';
-import { $currentTrack, $currentEra, $timeDisplay, $isPlaying, $isLoading, $isPoweredOn } from '../../stores/player';
+import { $currentTrack, $currentEra, $timeDisplay, $isPlaying, $isLoading, $isPoweredOn, $playbackError } from '../../stores/player';
 import { $era } from '../../stores/filters';
 import { ERA_RANGES, FM_RANGE } from '../../lib/constants';
 import './DisplayPanel.css';
@@ -13,6 +13,7 @@ export function DisplayPanel() {
   const isLoading = useStore($isLoading);
   const isPoweredOn = useStore($isPoweredOn);
   const selectedEra = useStore($era);
+  const playbackError = useStore($playbackError);
 
   // Check if title needs to scroll
   const titleRef = useRef<HTMLDivElement>(null);
@@ -100,7 +101,9 @@ export function DisplayPanel() {
             <span className="time-total">{timeDisplay.total}</span>
           </div>
           <div className="status-display">
-            {isLoading ? (
+            {playbackError ? (
+              <span className="status-error">{playbackError}</span>
+            ) : isLoading ? (
               <span className="status-loading">TUNING</span>
             ) : isPlaying ? (
               <span className="status-playing">PLAYING</span>
