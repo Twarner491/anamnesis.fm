@@ -696,7 +696,8 @@ async function handleStream(
 }
 
 // Listener tracking - heartbeat endpoint
-// Clients call this every 30 seconds while playing
+// Clients call this every 90 seconds while playing
+// NOTE: Does NOT return count to reduce KV list() operations
 async function handleHeartbeat(
   env: Env,
   corsHeaders: Record<string, string>,
@@ -704,7 +705,7 @@ async function handleHeartbeat(
 ): Promise<Response> {
   if (!env.LISTENERS) {
     // KV not configured - return gracefully
-    return new Response(JSON.stringify({ ok: true, count: null }), {
+    return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
@@ -716,25 +717,27 @@ async function handleHeartbeat(
                      'unknown';
     const clientId = `listener_${clientIp}`;
 
-    // Store heartbeat with 60 second TTL (clients should ping every 30s)
-    await env.LISTENERS.put(clientId, '1', { expirationTtl: 60 });
+    // Store heartbeat with 3 minute TTL (clients should ping every 90s)
+    // This reduces KV writes while still tracking active listeners
+    await env.LISTENERS.put(clientId, '1', { expirationTtl: 180 });
 
-    // Count active listeners
-    const list = await env.LISTENERS.list();
-    const count = list.keys.length;
-
-    return new Response(JSON.stringify({ ok: true, count }), {
+    // Just acknowledge - don't count (saves list() operations)
+    return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
     console.error('Heartbeat error:', e);
-    return new Response(JSON.stringify({ ok: false, count: null }), {
+    return new Response(JSON.stringify({ ok: false }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 }
 
-// Get current listener count
+// Cache key for listener count (to reduce list() operations)
+const LISTENER_COUNT_CACHE_KEY = '_listener_count_cache';
+const LISTENER_COUNT_CACHE_TTL = 300; // 5 minutes - max ~288 list() ops/day
+
+// Get current listener count (cached to reduce KV list() operations)
 async function handleListenerCount(
   env: Env,
   corsHeaders: Record<string, string>
@@ -746,14 +749,40 @@ async function handleListenerCount(
   }
 
   try {
-    const list = await env.LISTENERS.list();
-    const count = list.keys.length;
+    // Try to get cached count first
+    const cached = await env.LISTENERS.get(LISTENER_COUNT_CACHE_KEY);
+    if (cached) {
+      const { count, updatedAt } = JSON.parse(cached);
+      const age = Date.now() - updatedAt;
 
-    return new Response(JSON.stringify({ count }), {
+      // If cache is fresh (less than 5 minutes old), use it
+      if (age < LISTENER_COUNT_CACHE_TTL * 1000) {
+        return new Response(JSON.stringify({ count, cached: true }), {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Cache-Control': `max-age=${Math.floor((LISTENER_COUNT_CACHE_TTL * 1000 - age) / 1000)}`,
+          },
+        });
+      }
+    }
+
+    // Cache is stale or missing - do the expensive list() operation
+    const list = await env.LISTENERS.list();
+    // Filter out cache key from count
+    const count = list.keys.filter(k => !k.name.startsWith('_')).length;
+
+    // Store in cache (no TTL - we manage freshness via updatedAt)
+    await env.LISTENERS.put(
+      LISTENER_COUNT_CACHE_KEY,
+      JSON.stringify({ count, updatedAt: Date.now() })
+    );
+
+    return new Response(JSON.stringify({ count, cached: false }), {
       headers: {
         ...corsHeaders,
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': `max-age=${LISTENER_COUNT_CACHE_TTL}`,
       },
     });
   } catch (e) {

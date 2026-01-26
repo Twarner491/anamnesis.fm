@@ -26,15 +26,41 @@ class AudioManager {
   private consecutiveErrors = 0;
   private maxConsecutiveErrors = 5;
   private isAudioPrimed = false;
+  private isIOS = false;
+
+  // Detect iOS for special handling (AudioContext issues with background playback)
+  private detectIOS(): boolean {
+    if (typeof window === 'undefined') return false;
+    const ua = window.navigator.userAgent;
+    // iPad on iOS 13+ reports as Mac, so check for touch support
+    const isIPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const isIPhone = /iPhone/.test(ua);
+    const isIPod = /iPod/.test(ua);
+    return isIPad || isIPhone || isIPod;
+  }
 
   constructor() {
     if (typeof window !== 'undefined') {
+      this.isIOS = this.detectIOS();
+      console.log('AudioManager: iOS detected =', this.isIOS);
+
       this.audio = new Audio();
       this.audio.crossOrigin = 'anonymous';
       this.audio.preload = 'auto';
-      // These help with background playback on mobile
+
+      // Mobile background playback attributes
       (this.audio as any).playsInline = true;
       (this.audio as any).webkitPlaysInline = true;
+
+      // iOS needs these for background audio
+      // Setting audio element attributes that help with background playback
+      this.audio.setAttribute('playsinline', '');
+      this.audio.setAttribute('webkit-playsinline', '');
+
+      // Prevent iOS from auto-pausing when screen locks
+      // By keeping a reference that iOS sees as "active media"
+      (this.audio as any).preservesPitch = true;
+
       this.setupEventListeners();
       this.setupFilterSubscription();
       this.setupMediaSession();
@@ -50,6 +76,10 @@ class AudioManager {
         // Page is hidden but we're playing - keep audio context alive
         if ($isPlaying.get() && this.audioContext?.state === 'suspended') {
           this.audioContext.resume().catch(() => {});
+        }
+        // Try to ensure audio keeps playing
+        if ($isPlaying.get() && this.audio && !this.audio.paused) {
+          console.log('Page hidden, audio still playing - good');
         }
       } else {
         // Page became visible again - check if we need to resume
@@ -68,17 +98,71 @@ class AudioManager {
       }
     });
 
+    // Handle page freeze/resume (Page Lifecycle API for mobile)
+    document.addEventListener('freeze', () => {
+      console.log('Page frozen');
+    });
+
+    document.addEventListener('resume', async () => {
+      console.log('Page resumed from freeze');
+      // Try to resume audio after page unfreezes
+      if ($isPlaying.get() && this.audio?.paused && this.audio.src) {
+        try {
+          await this.audio.play();
+          console.log('Resumed audio after page unfreeze');
+        } catch (e) {
+          console.log('Could not auto-resume after unfreeze');
+        }
+      }
+      if (this.audioContext?.state === 'suspended') {
+        this.audioContext.resume().catch(() => {});
+      }
+    });
+
+    // iOS audio interruption handling (when another app takes audio focus)
+    if (this.audio) {
+      // iOS fires 'pause' when interrupted by phone call, etc
+      this.audio.addEventListener('pause', () => {
+        if ($isPlaying.get() && !$isPaused.get()) {
+          console.log('Audio paused externally (possible interruption)');
+          // Mark that we were interrupted so we can resume
+          (this as any).wasInterrupted = true;
+        }
+      });
+
+      // When we regain focus, try to resume
+      this.audio.addEventListener('play', () => {
+        (this as any).wasInterrupted = false;
+      });
+    }
+
     // On iOS, periodically check and resume audio context if needed
     setInterval(() => {
       if ($isPlaying.get() && this.audioContext?.state === 'suspended') {
         this.audioContext.resume().catch(() => {});
       }
-      // Also check if audio element got paused unexpectedly
+      // Also check if audio element got paused unexpectedly (and wasn't user-initiated)
       if ($isPlaying.get() && this.audio?.paused && this.audio.src && !$isPaused.get()) {
         console.log('Audio paused unexpectedly, attempting resume');
         this.audio.play().catch(() => {});
       }
     }, 2000);
+
+    // Listen for when screen is locked/unlocked on mobile
+    // This uses the Screen Wake Lock API if available (just for detection)
+    if ('wakeLock' in navigator) {
+      document.addEventListener('visibilitychange', () => {
+        // When page becomes visible again, audio may need resuming
+        if (!document.hidden && $isPlaying.get() && this.audio?.paused) {
+          setTimeout(() => {
+            if ($isPlaying.get() && this.audio?.paused && !$isPaused.get()) {
+              console.log('Attempting resume after screen wake');
+              this.audio?.play().catch(() => {});
+            }
+          }, 100);
+        }
+      });
+    }
   }
 
   // Set up Media Session API for background playback and lock screen controls
@@ -86,22 +170,60 @@ class AudioManager {
     if (!('mediaSession' in navigator)) return;
 
     // Set action handlers for media controls
-    navigator.mediaSession.setActionHandler('play', () => {
-      this.resume();
+    navigator.mediaSession.setActionHandler('play', async () => {
+      console.log('Media Session: play action');
+      await this.resume();
     });
 
     navigator.mediaSession.setActionHandler('pause', () => {
+      console.log('Media Session: pause action');
       this.pause();
     });
 
-    navigator.mediaSession.setActionHandler('nexttrack', () => {
-      this.playNext();
+    navigator.mediaSession.setActionHandler('nexttrack', async () => {
+      console.log('Media Session: next track action');
+      await this.playNext();
     });
 
     navigator.mediaSession.setActionHandler('previoustrack', () => {
       // We don't have previous track functionality, but handle it gracefully
-      // Could potentially play from history in the future
+      console.log('Media Session: previous track action (no-op)');
     });
+
+    // Handle seeking if supported
+    try {
+      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+        if (this.audio && this.audio.duration) {
+          const skipTime = details.seekOffset || 10;
+          this.audio.currentTime = Math.max(0, this.audio.currentTime - skipTime);
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('seekforward', (details) => {
+        if (this.audio && this.audio.duration) {
+          const skipTime = details.seekOffset || 10;
+          this.audio.currentTime = Math.min(this.audio.duration, this.audio.currentTime + skipTime);
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (this.audio && details.seekTime !== undefined) {
+          this.audio.currentTime = details.seekTime;
+        }
+      });
+
+      // Stop handler
+      navigator.mediaSession.setActionHandler('stop', () => {
+        console.log('Media Session: stop action');
+        this.pause();
+        if (this.audio) {
+          this.audio.currentTime = 0;
+        }
+      });
+    } catch (e) {
+      // Some handlers may not be supported on all platforms
+      console.log('Some media session handlers not supported:', e);
+    }
 
     // Update playback state when our state changes
     $isPlaying.subscribe((playing) => {
@@ -109,6 +231,23 @@ class AudioManager {
         navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
       }
     });
+
+    // Update position state periodically for lock screen progress bar
+    if (this.audio) {
+      this.audio.addEventListener('timeupdate', () => {
+        if (this.audio && this.audio.duration && !isNaN(this.audio.duration) && 'mediaSession' in navigator) {
+          try {
+            navigator.mediaSession.setPositionState({
+              duration: this.audio.duration,
+              playbackRate: this.audio.playbackRate,
+              position: this.audio.currentTime,
+            });
+          } catch (e) {
+            // Position state may not be supported
+          }
+        }
+      });
+    }
   }
 
   // Update Media Session metadata with current track info
@@ -123,8 +262,7 @@ class AudioManager {
       artist: artist,
       album: year ? `${year} • anamnesis.fm` : 'anamnesis.fm',
       artwork: [
-        // Use a generic artwork - could be enhanced with track-specific art later
-        { src: '/thumb.png', sizes: '512x512', type: 'image/png' },
+        { src: '/favicon.gif', sizes: '512x512', type: 'image/gif' },
       ],
     });
   }
@@ -314,8 +452,20 @@ class AudioManager {
   }
 
   // Initialize Web Audio API for visualizer (must be called after user interaction)
+  // NOTE: On iOS, we skip MediaElementSource routing to preserve background playback
+  // When audio goes through AudioContext on iOS, it stops when screen is locked
   initializeAnalyser(): AnalyserNode | null {
     if (!this.audio || this.analyser) return this.analyser;
+
+    // On iOS, skip Web Audio routing to allow background playback
+    // The visualizer won't work, but audio will continue when screen is off
+    if (this.isIOS) {
+      console.log('iOS detected - skipping Web Audio routing for background playback');
+      // Create AudioContext but don't route audio through it
+      // This still allows us to create an analyser for basic context
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      return null;
+    }
 
     try {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();

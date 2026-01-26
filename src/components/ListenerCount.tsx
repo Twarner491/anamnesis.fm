@@ -9,8 +9,6 @@ export function ListenerCount() {
   const isPlaying = useStore($isPlaying);
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-
     const fetchCount = async () => {
       try {
         const response = await fetch(apiUrl('api/listeners'));
@@ -33,20 +31,22 @@ export function ListenerCount() {
     fetchCount();
 
     // If playing, send heartbeats and refresh count
+    // Heartbeat every 90s (server TTL is 180s) to reduce KV writes
+    // Count fetch every 60s (server caches for 5 min anyway)
     if (isPlaying) {
       sendHeartbeat();
-      interval = setInterval(() => {
-        sendHeartbeat();
-        fetchCount();
-      }, 30000); // Every 30 seconds
-    } else {
-      // Not playing, just poll count less frequently
-      interval = setInterval(fetchCount, 60000);
+      const heartbeatInterval = setInterval(sendHeartbeat, 90000); // 90 seconds
+      const countInterval = setInterval(fetchCount, 60000); // 60 seconds
+
+      return () => {
+        clearInterval(heartbeatInterval);
+        clearInterval(countInterval);
+      };
     }
 
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    // Not playing, just poll count every 2 minutes
+    const countInterval = setInterval(fetchCount, 120000);
+    return () => clearInterval(countInterval);
   }, [isPlaying]);
 
   // Don't show if count is unavailable
