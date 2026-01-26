@@ -57,6 +57,16 @@ export function FilterDial({ type }: FilterDialProps) {
   // Track the latest index during drag (to avoid React state async issues)
   const latestIndexRef = useRef(currentIndex);
 
+  // Sync currentIndex when options array changes (e.g., switching to/from Antarctica)
+  // This prevents out-of-bounds access when options array shrinks
+  useEffect(() => {
+    const newIndex = getCurrentIndex();
+    if (newIndex !== currentIndex || currentIndex >= options.length) {
+      setCurrentIndex(newIndex);
+      latestIndexRef.current = newIndex;
+    }
+  }, [options, currentValue]);
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!isPoweredOn) return; // Disable when powered off
     setIsDragging(true);

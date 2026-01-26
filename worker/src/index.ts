@@ -929,7 +929,7 @@ async function handlePenguinRadio(
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json',
-          'Cache-Control': 'max-age=300', // Cache for 5 minutes
+          'Cache-Control': 'no-cache, no-store, must-revalidate', // No caching - shuffle each time
         },
       }
     );
