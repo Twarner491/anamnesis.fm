@@ -598,6 +598,9 @@ class AudioManager {
     setCurrentTrack(track);
     setLoading(true); // Show loading while we prepare
 
+    // Track this identifier to avoid repeats in future searches
+    this.addToRecentlyPlayed(track.identifier);
+
     // Update lock screen / notification metadata
     this.updateMediaSessionMetadata(track);
 
@@ -821,8 +824,37 @@ class AudioManager {
     if (era) params.set('era', era);
     if (location) params.set('location', location);
     if (genre) params.set('genre', genre);
+    // Add cache-busting timestamp to ensure fresh results every time
+    params.set('_t', Date.now().toString());
+    // Pass recently played identifiers to exclude from results
+    const recentIds = this.getRecentlyPlayedIds();
+    if (recentIds.length > 0) {
+      params.set('exclude', recentIds.join(','));
+    }
     const query = params.toString();
-    return apiUrl(`api/search${query ? `?${query}` : ''}`);
+    return apiUrl(`api/search?${query}`);
+  }
+
+  // Track recently played identifiers to avoid repeats
+  private recentlyPlayedIds: string[] = [];
+  private maxRecentIds = 50; // Remember last 50 tracks
+
+  private addToRecentlyPlayed(identifier: string) {
+    // Don't add duplicates
+    if (this.recentlyPlayedIds.includes(identifier)) return;
+    this.recentlyPlayedIds.push(identifier);
+    // Keep list bounded
+    if (this.recentlyPlayedIds.length > this.maxRecentIds) {
+      this.recentlyPlayedIds.shift();
+    }
+  }
+
+  private getRecentlyPlayedIds(): string[] {
+    return this.recentlyPlayedIds.slice(-20); // Send last 20 to exclude
+  }
+
+  private clearRecentlyPlayed() {
+    this.recentlyPlayedIds = [];
   }
 
   // Check if a track's date falls within the selected era

@@ -398,6 +398,9 @@ async function handleSearch(
     const location = url.searchParams.get('location');
     const genre = url.searchParams.get('genre');
     const page = url.searchParams.get('page') || '1';
+    // Parse excluded identifiers (recently played tracks to avoid)
+    const excludeParam = url.searchParams.get('exclude');
+    const excludeIds = new Set(excludeParam ? excludeParam.split(',').filter(id => id.trim()) : []);
 
     // Get pre-filtered collections based on filters
     const collections = getFilteredCollections(era, location, genre);
@@ -436,28 +439,33 @@ async function handleSearch(
   }
 
   // Aggressive randomization to avoid repeated results
-  const rows = 200; // Fetch more for better variety
+  const rows = 300; // Fetch more for better variety
   const pageNum = parseInt(page, 10) || 1;
 
-  // Use highly variable random offset (0-1000) to ensure different results each time
-  const randomOffset = Math.floor(Math.random() * 1000);
+  // Use highly variable random offset (0-2000) to ensure different results each time
+  const randomOffset = Math.floor(Math.random() * 2000);
   const startIndex = ((pageNum - 1) * rows) + randomOffset;
 
-  // Randomly select sort order - weight towards less predictable sorts
-  const sortOptions = [
-    'date desc',
-    'date asc',
-    'downloads desc',
-    'downloads asc',
-    'addeddate desc',
-    'addeddate asc',
-    'titleSorter asc',
-    'titleSorter desc',
-    'publicdate desc',
-    'publicdate asc',
-    'random', // Archive.org supports random sort
-  ];
-  const randomSort = sortOptions[Math.floor(Math.random() * sortOptions.length)];
+  // Randomly select sort order - heavily weight towards 'random' for maximum variety
+  // 50% chance of random sort, 50% split among other options
+  let randomSort: string;
+  if (Math.random() < 0.5) {
+    randomSort = 'random'; // Archive.org's random sort - most variety
+  } else {
+    const otherSorts = [
+      'date desc',
+      'date asc',
+      'downloads desc',
+      'downloads asc',
+      'addeddate desc',
+      'addeddate asc',
+      'titleSorter asc',
+      'titleSorter desc',
+      'publicdate desc',
+      'publicdate asc',
+    ];
+    randomSort = otherSorts[Math.floor(Math.random() * otherSorts.length)];
+  }
 
   const params = new URLSearchParams();
   params.set('q', query);
@@ -492,6 +500,13 @@ async function handleSearch(
     (item): item is { identifier: string; creator?: string; title?: string } =>
       typeof item === 'object' && item !== null && 'identifier' in item
   );
+
+  // Filter out recently played tracks to ensure variety
+  if (excludeIds.size > 0) {
+    const beforeCount = items.length;
+    items = items.filter(item => !excludeIds.has(item.identifier));
+    console.log(`Filtered out ${beforeCount - items.length} recently played tracks`);
+  }
 
   // Deduplicate by creator/show to ensure variety across different shows
   // Instead of getting many episodes from the same show, limit to 2 per creator
