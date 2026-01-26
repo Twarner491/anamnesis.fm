@@ -23,10 +23,20 @@ export function FilterDial({ type }: FilterDialProps) {
       ? [PENGUIN_RADIO_GENRE] // Only Penguin Radio in Antarctica!
       : GENRES;
 
+  // Track previous Antarctica state to detect when leaving
+  const wasAntarcticaRef = useRef(isAntarcticaSelected);
+
   // Auto-set genre to Penguin Radio when Antarctica is selected
+  // Reset genre to ALL when leaving Antarctica
   useEffect(() => {
-    if (type === 'genre' && isAntarcticaSelected) {
-      setGenre(PENGUIN_RADIO_GENRE.query);
+    if (type === 'genre') {
+      if (isAntarcticaSelected) {
+        setGenre(PENGUIN_RADIO_GENRE.query);
+      } else if (wasAntarcticaRef.current && !isAntarcticaSelected) {
+        // Leaving Antarctica - reset genre to ALL
+        setGenre(null);
+      }
+      wasAntarcticaRef.current = isAntarcticaSelected;
     }
   }, [type, isAntarcticaSelected]);
 

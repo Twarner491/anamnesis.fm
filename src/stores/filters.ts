@@ -53,6 +53,19 @@ export const $genre = persistentAtom<string | null>('radio:genre', initialValues
   decode: JSON.parse,
 });
 
+// Safety check: Clear "penguin-radio" genre if location is not Antarctica
+// This handles edge cases where users got into a bad state
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    const location = $location.get();
+    const genre = $genre.get();
+    if (genre === 'penguin-radio' && location !== 'Antarctica') {
+      console.log('[Filters] Clearing invalid penguin-radio genre (not in Antarctica)');
+      $genre.set(null);
+    }
+  }, 0);
+}
+
 // Computed: are any filters active?
 export const $hasFilters = computed(
   [$era, $location, $genre],
