@@ -41,6 +41,9 @@ export interface Track {
   date?: string;
   filename: string;
   duration?: string;
+  // SoundCloud tracks (Penguin Radio easter egg)
+  soundcloudId?: number;
+  isPenguinRadio?: boolean;
 }
 
 export interface PlaybackState {

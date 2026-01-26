@@ -28,6 +28,7 @@ export const LOCATIONS: LocationOption[] = [
   { id: 'asia', label: 'ASIA', query: 'Asia' },
   { id: 'middle-east', label: 'MID EAST', query: 'Middle East' },
   { id: 'africa', label: 'AFRICA', query: 'Africa' },
+  { id: 'antarctica', label: 'ANTRCTC', query: 'Antarctica' }, // Easter egg!
 ];
 
 // Genre options based on Archive.org subject field
@@ -45,6 +46,16 @@ export const GENRES: GenreOption[] = [
   { id: 'comedy', label: 'COMEDY', query: 'comedy OR humor OR humour OR funny' },
   { id: 'sports', label: 'SPORT', query: 'sports OR baseball OR football OR basketball' },
 ];
+
+// Special genre for Antarctica easter egg
+export const PENGUIN_RADIO_GENRE: GenreOption = {
+  id: 'penguin-radio',
+  label: 'PENGUIN',
+  query: 'penguin-radio', // Special marker for SoundCloud playlist
+};
+
+// Check if location is Antarctica (easter egg)
+export const isAntarctica = (locationQuery: string | null) => locationQuery === 'Antarctica';
 
 // Archive.org collections to aggregate
 // Comprehensive list of radio and audio collections for maximum variety

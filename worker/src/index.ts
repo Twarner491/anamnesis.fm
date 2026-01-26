@@ -353,6 +353,13 @@ export default {
       // Route requests
       if (url.pathname === '/api/search') {
         return handleSearch(url, corsHeaders);
+      } else if (url.pathname === '/api/penguin-radio') {
+        // Easter egg: Antarctica's Penguin Radio - SoundCloud playlist
+        return handlePenguinRadio(corsHeaders);
+      } else if (url.pathname.startsWith('/api/soundcloud-stream/')) {
+        // Stream audio from SoundCloud
+        const trackUrl = decodeURIComponent(url.pathname.replace('/api/soundcloud-stream/', ''));
+        return handleSoundCloudStream(trackUrl, request, corsHeaders);
       } else if (url.pathname.startsWith('/api/metadata/')) {
         const id = url.pathname.replace('/api/metadata/', '');
         return handleMetadata(id, corsHeaders);
@@ -790,5 +797,188 @@ async function handleListenerCount(
     return new Response(JSON.stringify({ count: null }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  }
+}
+
+// ============================================
+// EASTER EGG: Penguin Radio (Antarctica)
+// SoundCloud playlist for the Antarctica location
+// ============================================
+
+const PENGUIN_RADIO_PLAYLIST_URL = 'https://soundcloud.com/teddy-warner-910871598/sets/antartica-fm/s-KAZ0Aou8bOW';
+
+// SoundCloud client_id - extracted from their public pages
+// This may need to be updated if SoundCloud changes their public client_id
+const SOUNDCLOUD_CLIENT_ID = 'a3e059563d7fd3372b49b37f00a00bcf';
+
+interface SoundCloudTrack {
+  id: number;
+  title: string;
+  user: { username: string };
+  duration: number;
+  stream_url?: string;
+  media?: {
+    transcodings: Array<{
+      url: string;
+      format: { protocol: string; mime_type: string };
+    }>;
+  };
+}
+
+interface SoundCloudPlaylist {
+  tracks: SoundCloudTrack[];
+  title: string;
+}
+
+// Fetch tracks from the Penguin Radio SoundCloud playlist
+async function handlePenguinRadio(
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    // Use SoundCloud's API v2 to resolve the playlist
+    const resolveUrl = `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(PENGUIN_RADIO_PLAYLIST_URL)}&client_id=${SOUNDCLOUD_CLIENT_ID}`;
+
+    const response = await fetch(resolveUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; anamnesis.fm/1.0)',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('SoundCloud API error:', response.status, await response.text());
+      throw new Error(`SoundCloud API error: ${response.status}`);
+    }
+
+    const playlist = await response.json() as SoundCloudPlaylist;
+
+    // Transform tracks to our format
+    const tracks = playlist.tracks.map((track: SoundCloudTrack) => ({
+      identifier: `soundcloud-${track.id}`,
+      title: track.title,
+      creator: track.user?.username || 'Penguin Radio',
+      duration: Math.floor(track.duration / 1000), // Convert ms to seconds
+      // Store the track ID for streaming
+      soundcloudId: track.id,
+      isPenguinRadio: true,
+    }));
+
+    // Shuffle the tracks for variety
+    const shuffledTracks = shuffleArray(tracks);
+
+    return new Response(
+      JSON.stringify({
+        items: shuffledTracks,
+        count: shuffledTracks.length,
+        source: 'penguin-radio',
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'max-age=300', // Cache for 5 minutes
+        },
+      }
+    );
+  } catch (e) {
+    console.error('Penguin Radio error:', e);
+    return new Response(
+      JSON.stringify({ error: 'Failed to fetch Penguin Radio tracks', items: [] }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+}
+
+// Stream audio from SoundCloud
+async function handleSoundCloudStream(
+  trackId: string,
+  request: Request,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    // Get stream URL from SoundCloud API v2
+    const trackUrl = `https://api-v2.soundcloud.com/tracks/${trackId}?client_id=${SOUNDCLOUD_CLIENT_ID}`;
+
+    const trackResponse = await fetch(trackUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; anamnesis.fm/1.0)',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!trackResponse.ok) {
+      throw new Error(`Failed to get track info: ${trackResponse.status}`);
+    }
+
+    const track = await trackResponse.json() as SoundCloudTrack;
+
+    // Find the best transcoding (prefer progressive mp3)
+    const transcodings = track.media?.transcodings || [];
+    const progressive = transcodings.find(t => t.format.protocol === 'progressive');
+    const hls = transcodings.find(t => t.format.protocol === 'hls');
+
+    const transcoding = progressive || hls;
+    if (!transcoding) {
+      throw new Error('No stream URL available for this track');
+    }
+
+    // Get the actual stream URL
+    const streamUrlResponse = await fetch(`${transcoding.url}?client_id=${SOUNDCLOUD_CLIENT_ID}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; anamnesis.fm/1.0)',
+      },
+    });
+
+    if (!streamUrlResponse.ok) {
+      throw new Error(`Failed to get stream URL: ${streamUrlResponse.status}`);
+    }
+
+    const streamData = await streamUrlResponse.json() as { url: string };
+    const streamUrl = streamData.url;
+
+    // Proxy the stream
+    const rangeHeader = request.headers.get('Range');
+    const streamResponse = await fetch(streamUrl, {
+      headers: rangeHeader ? { Range: rangeHeader } : {},
+    });
+
+    if (!streamResponse.ok && streamResponse.status !== 206) {
+      throw new Error(`Stream error: ${streamResponse.status}`);
+    }
+
+    const contentType = streamResponse.headers.get('Content-Type') || 'audio/mpeg';
+    const contentLength = streamResponse.headers.get('Content-Length');
+    const contentRange = streamResponse.headers.get('Content-Range');
+
+    const responseHeaders: Record<string, string> = {
+      ...corsHeaders,
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=86400',
+      'Accept-Ranges': 'bytes',
+    };
+
+    if (contentLength) {
+      responseHeaders['Content-Length'] = contentLength;
+    }
+    if (contentRange) {
+      responseHeaders['Content-Range'] = contentRange;
+    }
+
+    return new Response(streamResponse.body, {
+      status: streamResponse.status,
+      headers: responseHeaders,
+    });
+  } catch (e) {
+    console.error('SoundCloud stream error:', e);
+    return new Response(
+      JSON.stringify({ error: 'Failed to stream audio' }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

@@ -1,8 +1,8 @@
 import { useStore } from '@nanostores/react';
 import { $location, $genre, setLocation, setGenre } from '../../stores/filters';
 import { $isPoweredOn } from '../../stores/player';
-import { LOCATIONS, GENRES } from '../../lib/constants';
-import { useRef, useState } from 'react';
+import { LOCATIONS, GENRES, PENGUIN_RADIO_GENRE, isAntarctica } from '../../lib/constants';
+import { useRef, useState, useEffect } from 'react';
 import './FilterDial.css';
 
 interface FilterDialProps {
@@ -10,10 +10,25 @@ interface FilterDialProps {
 }
 
 export function FilterDial({ type }: FilterDialProps) {
-  const options = type === 'location' ? LOCATIONS : GENRES;
+  const location = useStore($location);
   const currentValue = useStore(type === 'location' ? $location : $genre);
   const isPoweredOn = useStore($isPoweredOn);
   const setValue = type === 'location' ? setLocation : setGenre;
+
+  // Easter egg: When Antarctica is selected, genre dial only shows Penguin Radio
+  const isAntarcticaSelected = isAntarctica(location);
+  const options = type === 'location'
+    ? LOCATIONS
+    : isAntarcticaSelected
+      ? [PENGUIN_RADIO_GENRE] // Only Penguin Radio in Antarctica!
+      : GENRES;
+
+  // Auto-set genre to Penguin Radio when Antarctica is selected
+  useEffect(() => {
+    if (type === 'genre' && isAntarcticaSelected) {
+      setGenre(PENGUIN_RADIO_GENRE.query);
+    }
+  }, [type, isAntarcticaSelected]);
 
   const dialRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);

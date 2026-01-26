@@ -13,6 +13,7 @@ import {
 import { $queue, skipToNext, addToHistory, addToQueue, clearQueue } from '../stores/queue';
 import { $era, $location, $genre } from '../stores/filters';
 import { apiUrl } from './config';
+import { isAntarctica } from './constants';
 import { getTuningSound } from './tuning-sound';
 import type { Track, ArchiveMetadata } from '../types';
 
@@ -522,9 +523,16 @@ class AudioManager {
     // Update lock screen / notification metadata
     this.updateMediaSessionMetadata(track);
 
-    // Construct proxied URL
-    const encodedFilename = encodeURIComponent(track.filename);
-    const proxyUrl = apiUrl(`api/stream/${track.identifier}/${encodedFilename}`);
+    // Construct proxied URL - handle SoundCloud tracks differently
+    let proxyUrl: string;
+    if (track.soundcloudId) {
+      // Penguin Radio track from SoundCloud
+      proxyUrl = apiUrl(`api/soundcloud-stream/${track.soundcloudId}`);
+    } else {
+      // Regular Archive.org track
+      const encodedFilename = encodeURIComponent(track.filename);
+      proxyUrl = apiUrl(`api/stream/${track.identifier}/${encodedFilename}`);
+    }
     this.audio.src = proxyUrl;
 
     // Load the audio first (helps on mobile)
@@ -725,6 +733,22 @@ class AudioManager {
     const location = $location.get();
     const genre = $genre.get();
 
+    // Easter egg: Penguin Radio - fetch from SoundCloud playlist
+    if (isAntarctica(location)) {
+      console.log('🐧 Penguin Radio mode activated!');
+      try {
+        const response = await fetch(apiUrl('api/penguin-radio'));
+        const data = await response.json();
+        if (data.items?.length > 0) {
+          console.log(`Found ${data.items.length} Penguin Radio tracks`);
+          return data.items;
+        }
+      } catch (e) {
+        console.error('Failed to fetch Penguin Radio tracks:', e);
+      }
+      return [];
+    }
+
     // Build list of search strategies - NEVER remove era filter if set
     // Only relax location and genre, era must stay strict
     const strategies = era ? [
@@ -771,65 +795,22 @@ class AudioManager {
       const items = await this.fetchWithFallback();
 
       if (items.length > 0) {
-        // Shuffle results for variety
-        const shuffled = this.shuffle(items);
+        // Check if these are Penguin Radio tracks (already have all info)
+        const isPenguinRadio = items[0]?.isPenguinRadio || items[0]?.soundcloudId;
 
-        // Get metadata and audio files for first 10 items
-        const trackPromises = shuffled.slice(0, 10).map(async (item: any) => {
-          try {
-            const metaResponse = await fetch(apiUrl(`api/metadata/${item.identifier}`));
-            const meta: ArchiveMetadata = await metaResponse.json();
+        if (isPenguinRadio) {
+          // Penguin Radio tracks are ready to play - no metadata fetch needed
+          console.log('🐧 Adding Penguin Radio tracks to queue');
+          const tracks: Track[] = items.map((item: any) => ({
+            identifier: item.identifier,
+            title: item.title,
+            creator: item.creator || 'Penguin Radio',
+            duration: item.duration?.toString(),
+            filename: '', // Not used for SoundCloud
+            soundcloudId: item.soundcloudId,
+            isPenguinRadio: true,
+          }));
 
-            if (meta.audioFiles?.length > 0) {
-              // Filter to only actual audio files (exclude video)
-              const validAudioFiles = meta.audioFiles.filter(f => {
-                const name = f.name?.toLowerCase() || '';
-                return !name.endsWith('.ogv') &&
-                       !name.endsWith('.mp4') &&
-                       !name.endsWith('.avi') &&
-                       !name.endsWith('.mkv') &&
-                       !name.endsWith('.webm');
-              });
-
-              if (validAudioFiles.length === 0) return null;
-
-              // Pick a random audio file if multiple exist
-              const audioFile = validAudioFiles[Math.floor(Math.random() * validAudioFiles.length)];
-              return {
-                identifier: item.identifier,
-                title: meta.title || item.title || item.identifier,
-                creator: meta.creator || item.creator,
-                date: meta.date || item.date,
-                filename: audioFile.name,
-                duration: audioFile.duration,
-              } as Track;
-            }
-          } catch (e) {
-            console.error(`Failed to get metadata for ${item.identifier}:`, e);
-          }
-          return null;
-        });
-
-        const allTracks = (await Promise.all(trackPromises)).filter(Boolean) as Track[];
-
-        // Filter tracks to only include those matching the selected era
-        const selectedEra = $era.get();
-        const eraFilteredTracks = allTracks.filter(track => this.isTrackInEra(track.date, selectedEra));
-
-        // Deduplicate by creator to ensure variety across different shows
-        const seenCreators = new Set<string>();
-        const tracks = eraFilteredTracks.filter(track => {
-          const creator = (track.creator || track.identifier?.split('-')[0] || 'unknown').toLowerCase().trim();
-          if (seenCreators.has(creator)) {
-            return false; // Skip duplicate creator
-          }
-          seenCreators.add(creator);
-          return true;
-        });
-
-        console.log(`After era validation: ${eraFilteredTracks.length}/${allTracks.length} tracks, after dedup: ${tracks.length} unique shows`);
-
-        if (tracks.length > 0) {
           addToQueue(tracks);
 
           // Start playing if not currently playing
@@ -838,9 +819,78 @@ class AudioManager {
             this.playNext();
           }
         } else {
-          // No tracks found after filtering - reset loading state
-          console.log('No valid tracks found, resetting loading state');
-          setLoading(false);
+          // Regular Archive.org tracks - need metadata fetch
+          // Shuffle results for variety
+          const shuffled = this.shuffle(items);
+
+          // Get metadata and audio files for first 10 items
+          const trackPromises = shuffled.slice(0, 10).map(async (item: any) => {
+            try {
+              const metaResponse = await fetch(apiUrl(`api/metadata/${item.identifier}`));
+              const meta: ArchiveMetadata = await metaResponse.json();
+
+              if (meta.audioFiles?.length > 0) {
+                // Filter to only actual audio files (exclude video)
+                const validAudioFiles = meta.audioFiles.filter(f => {
+                  const name = f.name?.toLowerCase() || '';
+                  return !name.endsWith('.ogv') &&
+                         !name.endsWith('.mp4') &&
+                         !name.endsWith('.avi') &&
+                         !name.endsWith('.mkv') &&
+                         !name.endsWith('.webm');
+                });
+
+                if (validAudioFiles.length === 0) return null;
+
+                // Pick a random audio file if multiple exist
+                const audioFile = validAudioFiles[Math.floor(Math.random() * validAudioFiles.length)];
+                return {
+                  identifier: item.identifier,
+                  title: meta.title || item.title || item.identifier,
+                  creator: meta.creator || item.creator,
+                  date: meta.date || item.date,
+                  filename: audioFile.name,
+                  duration: audioFile.duration,
+                } as Track;
+              }
+            } catch (e) {
+              console.error(`Failed to get metadata for ${item.identifier}:`, e);
+            }
+            return null;
+          });
+
+          const allTracks = (await Promise.all(trackPromises)).filter(Boolean) as Track[];
+
+          // Filter tracks to only include those matching the selected era
+          const selectedEra = $era.get();
+          const eraFilteredTracks = allTracks.filter(track => this.isTrackInEra(track.date, selectedEra));
+
+          // Deduplicate by creator to ensure variety across different shows
+          const seenCreators = new Set<string>();
+          const tracks = eraFilteredTracks.filter(track => {
+            const creator = (track.creator || track.identifier?.split('-')[0] || 'unknown').toLowerCase().trim();
+            if (seenCreators.has(creator)) {
+              return false; // Skip duplicate creator
+            }
+            seenCreators.add(creator);
+            return true;
+          });
+
+          console.log(`After era validation: ${eraFilteredTracks.length}/${allTracks.length} tracks, after dedup: ${tracks.length} unique shows`);
+
+          if (tracks.length > 0) {
+            addToQueue(tracks);
+
+            // Start playing if not currently playing
+            const currentlyPlaying = $isPlaying.get() || $isPaused.get();
+            if (!currentlyPlaying && $isPoweredOn.get()) {
+              this.playNext();
+            }
+          } else {
+            // No tracks found after filtering - reset loading state
+            console.log('No valid tracks found, resetting loading state');
+            setLoading(false);
+          }
         }
       } else {
         // No items found at all - reset loading state
