@@ -393,13 +393,14 @@ async function handleSearch(
   url: URL,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const era = url.searchParams.get('era');
-  const location = url.searchParams.get('location');
-  const genre = url.searchParams.get('genre');
-  const page = url.searchParams.get('page') || '1';
+  try {
+    const era = url.searchParams.get('era');
+    const location = url.searchParams.get('location');
+    const genre = url.searchParams.get('genre');
+    const page = url.searchParams.get('page') || '1';
 
-  // Get pre-filtered collections based on filters
-  const collections = getFilteredCollections(era, location, genre);
+    // Get pre-filtered collections based on filters
+    const collections = getFilteredCollections(era, location, genre);
 
   // Shuffle which collections we query - pick a random subset if we have many
   let queryCollections = collections;
@@ -520,22 +521,32 @@ async function handleSearch(
   // Shuffle the diverse results for final randomness
   items = shuffleArray(diverseItems);
 
-  return new Response(
-    JSON.stringify({
-      items,
-      page: pageNum,
-      count: items.length,
-      total: data.response?.numFound || 0,
-      collectionsSearched: queryCollections.length,
-    }),
-    {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate', // No caching for variety
-      },
-    }
-  );
+    return new Response(
+      JSON.stringify({
+        items,
+        page: pageNum,
+        count: items.length,
+        total: data.response?.numFound || 0,
+        collectionsSearched: queryCollections.length,
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate', // No caching for variety
+        },
+      }
+    );
+  } catch (error) {
+    console.error('Search error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Search failed', items: [], count: 0 }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
 }
 
 // Fisher-Yates shuffle
@@ -559,15 +570,16 @@ async function handleMetadata(
     });
   }
 
-  const archiveUrl = `https://archive.org/metadata/${encodeURIComponent(id)}`;
+  try {
+    const archiveUrl = `https://archive.org/metadata/${encodeURIComponent(id)}`;
 
-  const response = await fetch(archiveUrl, {
-    headers: { 'User-Agent': 'anamnesis.fm/1.0' },
-  });
+    const response = await fetch(archiveUrl, {
+      headers: { 'User-Agent': 'anamnesis.fm/1.0' },
+    });
 
-  if (!response.ok) {
-    throw new Error(`Archive.org API error: ${response.status}`);
-  }
+    if (!response.ok) {
+      throw new Error(`Archive.org API error: ${response.status}`);
+    }
 
   const data = await response.json() as {
     metadata?: {
@@ -627,25 +639,35 @@ async function handleMetadata(
     }
   }
 
-  return new Response(
-    JSON.stringify({
-      identifier: id,
-      title: data.metadata?.title || id,
-      creator: data.metadata?.creator,
-      date: effectiveDate,
-      description: data.metadata?.description,
-      coverage: data.metadata?.coverage,
-      subject: data.metadata?.subject,
-      audioFiles,
-    }),
-    {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=3600',
-      },
-    }
-  );
+    return new Response(
+      JSON.stringify({
+        identifier: id,
+        title: data.metadata?.title || id,
+        creator: data.metadata?.creator,
+        date: effectiveDate,
+        description: data.metadata?.description,
+        coverage: data.metadata?.coverage,
+        subject: data.metadata?.subject,
+        audioFiles,
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=3600',
+        },
+      }
+    );
+  } catch (error) {
+    console.error('Metadata error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Failed to fetch metadata', audioFiles: [] }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
 }
 
 async function handleStream(

@@ -769,17 +769,25 @@ class AudioManager {
     for (const strategy of strategies) {
       const searchUrl = this.buildSearchUrl(strategy.era, strategy.location, strategy.genre);
 
-      try {
-        const response = await fetch(searchUrl);
-        const data = await response.json();
+      // Retry up to 2 times for transient network errors
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const response = await fetch(searchUrl);
+          const data = await response.json();
 
-        if (data.items?.length > 0) {
-          console.log(`Found ${data.items.length} items with strategy: ${strategy.label}`);
-          return data.items;
+          if (data.items?.length > 0) {
+            console.log(`Found ${data.items.length} items with strategy: ${strategy.label}`);
+            return data.items;
+          }
+          console.log(`No items found with strategy: ${strategy.label}, trying next...`);
+          break; // No items but request succeeded, try next strategy
+        } catch (e) {
+          console.error(`Search failed for strategy ${strategy.label} (attempt ${attempt + 1}):`, e);
+          if (attempt === 0) {
+            // Wait a bit before retrying
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
         }
-        console.log(`No items found with strategy: ${strategy.label}, trying next...`);
-      } catch (e) {
-        console.error(`Search failed for strategy ${strategy.label}:`, e);
       }
     }
 
