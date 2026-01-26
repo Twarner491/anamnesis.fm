@@ -658,7 +658,9 @@ class AudioManager {
       if (e.name === 'NotAllowedError') {
         console.log('[Play] Blocked - needs user gesture. Will retry on next tap.');
         // Don't count as error - user just needs to tap again
-        setPlaybackState(false, false);
+        // Set as PAUSED (not stopped) so second click calls resume() instead of playNext()
+        // This ensures the second click plays the same track we already loaded
+        setPlaybackState(false, true); // false=not playing, true=paused
         setLoading(false);
         setPlaybackError('Tap play to start audio');
         return;
@@ -733,7 +735,9 @@ class AudioManager {
       // If blocked by browser policy, inform user
       if (e.name === 'NotAllowedError') {
         console.log('Resume blocked - tap play again');
-        setPlaybackState(false, false);
+        // Keep paused state so next tap tries resume() again
+        setPlaybackState(false, true);
+        setPlaybackError('Tap play to start audio');
         return;
       }
 
