@@ -51,15 +51,20 @@ export function Globe() {
   const targetTiltRef = useRef(15 * Math.PI / 180);
   const snowflakesRef = useRef<Snowflake[]>([]);
   const isAntarcticaSelectedRef = useRef(false);
+  const isWorldModeRef = useRef(true); // Track if "World" (all) is selected
   const lastFaviconUpdateRef = useRef(0);
   const faviconLinkRef = useRef<HTMLLinkElement | null>(null);
 
   // Check if Antarctica is selected
   const isAntarcticaSelected = isAntarctica(location);
 
-  // Update ref for use in animation loop
+  // Find location by query to get the ID
+  const locationId = LOCATIONS.find(l => l.query === location)?.id || 'all';
+
+  // Update refs for use in animation loop
   useEffect(() => {
     isAntarcticaSelectedRef.current = isAntarcticaSelected;
+    isWorldModeRef.current = locationId === 'all';
     // Initialize snowflakes when Antarctica is selected
     if (isAntarcticaSelected && snowflakesRef.current.length === 0) {
       snowflakesRef.current = Array.from({ length: 30 }, () => ({
@@ -70,10 +75,7 @@ export function Globe() {
         opacity: Math.random() * 0.5 + 0.3,
       }));
     }
-  }, [isAntarcticaSelected]);
-
-  // Find location by query to get the ID
-  const locationId = LOCATIONS.find(l => l.query === location)?.id || 'all';
+  }, [isAntarcticaSelected, locationId]);
   // Get the target rotation based on location ID
   const targetLongitude = LOCATION_COORDS[locationId] || 0;
   // Convert longitude to rotation angle (longitude 0 = 0 degrees rotation)
@@ -461,16 +463,25 @@ export function Globe() {
       const delta = (time - lastTime) / 1000;
       lastTime = time;
 
-      // Smoothly rotate towards target
-      const diff = targetRotationRef.current - currentRotation;
-
-      // Spin towards target quickly, then slow continuous spin
-      if (Math.abs(diff) > 0.02) {
-        // Move towards target - faster animation
-        currentRotation += diff * Math.min(delta * 8, 0.2);
+      // In World mode: spin continuously
+      // In specific region mode: move to target and stay there
+      if (isWorldModeRef.current) {
+        // Continuous spin in World mode - nice steady rotation
+        currentRotation += delta * 0.3; // ~17 degrees per second
       } else {
-        // Slow continuous spin when at target
-        currentRotation += delta * 0.15;
+        // Smoothly rotate towards target for specific region
+        const diff = targetRotationRef.current - currentRotation;
+
+        // Normalize the diff to take shortest path
+        let normalizedDiff = diff;
+        while (normalizedDiff > Math.PI) normalizedDiff -= Math.PI * 2;
+        while (normalizedDiff < -Math.PI) normalizedDiff += Math.PI * 2;
+
+        if (Math.abs(normalizedDiff) > 0.01) {
+          // Move towards target - faster animation
+          currentRotation += normalizedDiff * Math.min(delta * 6, 0.15);
+        }
+        // Stay at target when reached (no slow spin)
       }
 
       // Smoothly animate tilt towards target
