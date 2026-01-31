@@ -1,19 +1,19 @@
 import type { EraOption, LocationOption, GenreOption } from '../types';
 
 // FM dial maps to decades (88.0 - 108.0 MHz visual range)
+// Note: Collections start from 1930s
 export const ERA_RANGES: EraOption[] = [
   { id: 'all', label: 'ALL', query: null, position: 0 },
-  { id: '1920s', label: "'20s", query: '1920-1929', position: 16 },
-  { id: '1930s', label: "'30s", query: '1930-1939', position: 32 },
-  { id: '1940s', label: "'40s", query: '1940-1949', position: 48 },
-  { id: '1950s', label: "'50s", query: '1950-1959', position: 64 },
-  { id: '1960s', label: "'60s", query: '1960-1969', position: 80 },
-  { id: '1970s', label: "'70s", query: '1970-1979', position: 96 },
-  { id: '1980s', label: "'80s", query: '1980-1989', position: 112 },
-  { id: '1990s', label: "'90s", query: '1990-1999', position: 128 },
-  { id: '2000s', label: "'00s", query: '2000-2009', position: 144 },
-  { id: '2010s', label: "'10s", query: '2010-2019', position: 160 },
-  { id: '2020s', label: "'20s", query: '2020-2029', position: 176 },
+  { id: '1930s', label: "'30s", query: '1930-1939', position: 16 },
+  { id: '1940s', label: "'40s", query: '1940-1949', position: 32 },
+  { id: '1950s', label: "'50s", query: '1950-1959', position: 48 },
+  { id: '1960s', label: "'60s", query: '1960-1969', position: 64 },
+  { id: '1970s', label: "'70s", query: '1970-1979', position: 80 },
+  { id: '1980s', label: "'80s", query: '1980-1989', position: 96 },
+  { id: '1990s', label: "'90s", query: '1990-1999', position: 112 },
+  { id: '2000s', label: "'00s", query: '2000-2009', position: 128 },
+  { id: '2010s', label: "'10s", query: '2010-2019', position: 144 },
+  { id: '2020s', label: "'20s", query: '2020-2029', position: 160 },
 ];
 
 // FM frequency display range
@@ -28,23 +28,24 @@ export const LOCATIONS: LocationOption[] = [
   { id: 'asia', label: 'ASIA', query: 'Asia' },
   { id: 'middle-east', label: 'MID EAST', query: 'Middle East' },
   { id: 'africa', label: 'AFRICA', query: 'Africa' },
+  { id: 'australia', label: 'AUSTRLA', query: 'Australia' },
   { id: 'antarctica', label: 'ANTRCTC', query: 'Antarctica' }, // Easter egg!
 ];
 
-// Genre options based on Archive.org subject field
+// Genre options - new simplified system
+// ALL: Multi-genre stations, FOLK: Folk music, JAZZ: Jazz music, HIPHOP: Hip-hop,
+// CLASSICAL: Classical, COUNTRY/BLUES: Combined, ELECTRONIC: Electronic/dance/techno,
+// TALK: News/sports/comedy/drama, ROCK: Rock music
 export const GENRES: GenreOption[] = [
   { id: 'all', label: 'ALL', query: null },
-  { id: 'jazz', label: 'JAZZ', query: 'jazz OR bebop OR swing OR big band' },
-  { id: 'blues', label: 'BLUES', query: 'blues OR rhythm and blues OR R&B' },
-  { id: 'rock', label: 'ROCK', query: 'rock OR rock and roll OR alternative OR indie OR punk' },
-  { id: 'hiphop', label: 'HIP-HOP', query: 'hip hop OR hiphop OR hip-hop OR rap' },
-  { id: 'soul', label: 'SOUL', query: 'soul OR funk OR motown OR R&B' },
-  { id: 'classical', label: 'CLASS', query: 'classical OR symphony OR orchestra OR opera' },
-  { id: 'country', label: 'CNTRY', query: 'country OR folk OR bluegrass OR western' },
-  { id: 'electronic', label: 'ELEC', query: 'electronic OR techno OR house OR EDM OR synth' },
-  { id: 'news', label: 'NEWS', query: 'news OR newscast OR bulletin OR current affairs' },
-  { id: 'comedy', label: 'COMEDY', query: 'comedy OR humor OR humour OR funny' },
-  { id: 'sports', label: 'SPORT', query: 'sports OR baseball OR football OR basketball' },
+  { id: 'folk', label: 'FOLK', query: 'folk' },
+  { id: 'jazz', label: 'JAZZ', query: 'jazz' },
+  { id: 'hiphop', label: 'HIP-HOP', query: 'hiphop' },
+  { id: 'classical', label: 'CLASS', query: 'classical' },
+  { id: 'country-blues', label: 'CNTRY/BL', query: 'country/blues' },
+  { id: 'electronic', label: 'ELEC', query: 'electronic' },
+  { id: 'talk', label: 'TALK', query: 'talk' },
+  { id: 'rock', label: 'ROCK', query: 'rock' },
 ];
 
 // Special genre for Antarctica easter egg

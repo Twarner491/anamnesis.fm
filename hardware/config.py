@@ -58,7 +58,6 @@ class Display:
 # Filter Options (matching web app)
 ERAS = [
     {"id": "all", "label": "ALL ERAS", "query": None},
-    {"id": "1920s", "label": "1920s", "query": "1920-1929"},
     {"id": "1930s", "label": "1930s", "query": "1930-1939"},
     {"id": "1940s", "label": "1940s", "query": "1940-1949"},
     {"id": "1950s", "label": "1950s", "query": "1950-1959"},
@@ -79,22 +78,20 @@ LOCATIONS = [
     {"id": "asia", "label": "ASIA", "query": "Asia"},
     {"id": "middle-east", "label": "MIDDLE EAST", "query": "Middle East"},
     {"id": "africa", "label": "AFRICA", "query": "Africa"},
+    {"id": "australia", "label": "AUSTRALIA", "query": "Australia"},
     {"id": "antarctica", "label": "ANTARCTICA", "query": "Antarctica"},  # Easter egg!
 ]
 
 GENRES = [
-    {"id": "all", "label": "ALL GENRES", "query": None},
-    {"id": "jazz", "label": "JAZZ", "query": "jazz"},
-    {"id": "blues", "label": "BLUES", "query": "blues"},
-    {"id": "rock", "label": "ROCK", "query": "rock"},
-    {"id": "hip-hop", "label": "HIP-HOP", "query": "hip-hop"},
-    {"id": "soul", "label": "SOUL/R&B", "query": "soul"},
-    {"id": "classical", "label": "CLASSICAL", "query": "classical"},
-    {"id": "country", "label": "COUNTRY", "query": "country"},
+    {"id": "all", "label": "ALL", "query": None},
     {"id": "folk", "label": "FOLK", "query": "folk"},
+    {"id": "jazz", "label": "JAZZ", "query": "jazz"},
+    {"id": "hiphop", "label": "HIP-HOP", "query": "hiphop"},
+    {"id": "classical", "label": "CLASSICAL", "query": "classical"},
+    {"id": "country-blues", "label": "COUNTRY/BLUES", "query": "country/blues"},
     {"id": "electronic", "label": "ELECTRONIC", "query": "electronic"},
-    {"id": "comedy", "label": "COMEDY", "query": "comedy"},
-    {"id": "news", "label": "NEWS/TALK", "query": "news"},
+    {"id": "talk", "label": "TALK", "query": "talk"},
+    {"id": "rock", "label": "ROCK", "query": "rock"},
 ]
 
 # Timing Configuration

@@ -6,277 +6,561 @@ interface Env {
   LISTENERS?: KVNamespace; // Optional KV namespace for listener tracking
 }
 
-// All collections - comprehensive radio archives from Internet Archive
-const ALL_COLLECTIONS = [
-  // === CLASSIC RADIO / OLD TIME RADIO ===
-  'oldtimeradio',
-  'suspenseradio',
-  'fibbermcgee',
-  'abbottandcostelloradio',
-  'armedforcesradioservice',
-  'joy-boys',
-  'bobandraytoaster',
+// All verified radio collections from Internet Archive
+// Updated: January 30, 2026 - Verified collections with new genre system
+const ALL_RADIO_COLLECTIONS = [
+  // === CLASSIC RADIO (1930s-1960s) ===
+  'oldtimeradio',                     // ALL - 1930s-1960s
+  'suspenseradio',                    // TALK - 1940s-1950s (1942-1962)
+  'fibbermcgee',                      // TALK - 1930s-1950s (1935-1959)
+  'abbottandcostelloradio',           // TALK - 1940s-1950s (1942-1949)
+  'armedforcesradioservice',          // ALL - 1940s-2020s
+  'bobandraytoaster',                 // TALK - 1950s-1970s (1951-1976)
+  'joy-boys',                         // TALK - 1950s-1960s
+  'OTRR_Certified_Lux_Radio_Theatre', // TALK - 1930s-1950s (1934-1955)
+  'OrsonWelles_MercuryTheatre',       // TALK - 1930s-1940s (1938-1940)
+  'OrsonWelles_CampbellPlayhouse',    // TALK - 1930s-1940s (1938-1940)
 
-  // === HIP-HOP & RAP ===
-  'hiphopradioarchive',
-  'uprisingradio',
-  'eastvillageradio-the-bobbito-garcia-radio-show',
-  'eastvillageradio-forty-deuce',
+  // === RADIO DRAMA & BOOKS ===
+  'radiobooks',                       // TALK - 1940s-2020s
+
+  // === HIP-HOP RADIO ===
+  'hiphopradioarchive',               // HIPHOP - 1980s-1990s-2000s
+  'uprisingradio',                    // HIPHOP - 1990s-2010s
+  'eastvillageradio-the-bobbito-garcia-radio-show', // HIPHOP - 1990s-2000s
+  'eastvillageradio-forty-deuce',     // HIPHOP - 2000s-2010s
+
+  // === EAST VILLAGE RADIO (2003-2014) ===
+  'eastvillageradio',                           // ALL - 2000s-2010s
+  'eastvillageradio-minimal-wave',              // ELECTRONIC - 2000s-2010s
+  'eastvillageradio-mystic-sound',              // ALL - 2000s-2010s
+  'eastvillageradio-peer-pressure',             // ROCK - 2000s-2010s
+  'eastvillageradio-the-holy-sh-t-sound-system', // ALL - 2000s-2010s
+  'eastvillageradio-jamaica-rock',              // ROCK - 2000s-2010s
+  'eastvillageradio-pop-goes-the-future',       // ALL - 2000s-2010s
+  'eastvillageradio-the-ragged-phonograph-program', // FOLK - 2000s-2010s
+  'eastvillageradio-radioingrid',               // ELECTRONIC - 2000s-2010s
+  'eastvillageradio-black-and-blue-take-over',  // JAZZ - 2000s-2010s
+
+  // === TALK RADIO (News, Sports, Commentary) ===
+  'imus-in-the-morning',              // TALK - 1970s-2010s
+  'Radio-BBC-Radio-5-Live',           // TALK - 1990s-2020s
+  'pacifica_radio_archives_grammy_2013', // TALK - 1950s-2010s
+  '2600-off-the-hook',                // TALK - 1980s-2020s
+  'alanwattarchive',                  // TALK - 2000s-2010s
+  'crapfromthepast',                  // TALK - Various
+  'FM99_WNOR_Tommy_and_Rumble',       // TALK - 1980s-2000s
+
+  // === UK PIRATE RADIO (Dance/Electronic/Rave + 1960s Offshore) ===
+  'uk-rave-mixtapes-1988-1993-complete', // ELECTRONIC - 1980s-1990s
+  'death-is-not-the-end-london-pirate-radio-adverts-1984-1993-vol.-1', // ELECTRONIC - 1980s-1990s
+  'PirateYearsRadioShowWithPaulPeters', // TALK - 1950s-1990s (retrospective)
+  'EdMorenosTributeToTomPepperChairmanRadioInvictaAutum1964', // ROCK - 1960s
+  'ShortwavePirateRadio',             // ALL - 1980s-2020s
+  'shortwave-pirate-radio-studio-recordings', // ALL - 1980s-2010s
 
   // === ROCK & ALTERNATIVE ===
-  'kornradio',
-  'moodybluesradio',
-  'radiofreecrockett',
-  'eastvillageradio-peer-pressure',
-  'fav-psychobilly_brasil',
+  'radiofreecrockett',                // ROCK - 1970s-1980s
+
+  // === EUROPEAN STATIONS ===
+  'concertzender',                    // CLASSICAL - 2000s-2020s (Netherlands)
+  'radiotrinitatvella',               // ALL - Spain
+  'radiafm',                          // ROCK - Europe
+  'radiovkarchive',                   // ALL - Russia
+  'radiowombat',                      // ALL - 2020s (Italy)
+  'johnsinclair-rfa',                 // ROCK - Netherlands
+
+  // === LATIN AMERICAN STATIONS ===
+  'osornoradio',                      // ALL - Chile
+  'lamosquitera',                     // ALL - Latin America
+  'radiocaracasradio',                // ALL - Venezuela
+  'lavoladoraradioarchive',           // ALL - Latin America
+  'psicotropicodelia',                // ELECTRONIC - South America
+
+  // === AFRICAN STATIONS ===
+  'cairopublicradio',                 // ALL - 2010s-2020s (Egypt)
+  'sraa-voice-of-kenya-circa-1975',   // ALL - 1970s (Kenya)
+  'modernghanaradiocenterrewind-2010-daasebreonhighliferadiolive', // ALL - 2010s (Ghana)
+  '2ModernGhanaRadioCenteronlineAudioConverter.comHIGHLIFERADIOARCHIVESDAASEBRETIME', // ALL - 2010s (Ghana)
+  'GHANAARCHIVES-EMERGINGCOMMUNITYRADIOKAKAGHANAMEDIA-NKWAFM', // ALL - 2010s-2020s (Ghana)
+  'G.A.DABLEKUMAOPAMFORADIO',         // ALL - 2010s (Ghana)
+
+  // === ASIAN STATIONS ===
+  'ujyaaloradio',                     // ALL - Nepal
+  'hams-radio-japan',                 // ALL - Japan
+  'radio-pakistan-general-overseas-svc-han', // ALL - 1950s-2020s (Pakistan)
+  'sraa-radio-thailand-june-13-2016', // ALL - 2010s (Thailand)
+
+  // === MIDDLE EASTERN STATIONS ===
+  'radioislaminternational',          // TALK - Islamic broadcasting
+  'artsakhtv_audio',                  // ALL - Armenia
+  'sraa-syrian-radio-amp-television-1970s-recording', // ALL - 1970s (Syria)
+
+  // === AUSTRALIA ===
+  'stalking-the-nightmare-radio',     // ALL - 2000s (Australia)
+
+  // === FOLK RADIO ===
+  'utmafolkshow',                     // FOLK - 2010s (Under the Mason's Apron)
+  'outofthewoods',                    // FOLK - Folk/Americana
 
   // === ELECTRONIC & EXPERIMENTAL ===
-  'eastvillageradio-minimal-wave',
-  'eastvillageradio-radioingrid',
-  'finnish-electronic-mixtapes',
-  'psicotropicodelia',
-  'vanzemlja-sounds',
+  'vanzemlja-sounds',                 // ELECTRONIC - 2010s-2020s
 
-  // === JAZZ & BLUES ===
-  'SchickeleMix',
-  'eastvillageradio-black-and-blue-take-over',
+  // === GENERAL ARCHIVES ===
+  'radiostationarchives',             // ALL - Multi-decade
+  'radioshowarchive',                 // ALL - Multi-show archive
+  'radioprograms',                    // ALL - Multi-program archive
 
-  // === WORLD & REGGAE ===
-  'eastvillageradio-mystic-sound',
-  'eastvillageradio-jamaica-rock',
-  'radiotiana',
-  'ujyaaloradio',
+  // === INDIVIDUAL STATION ARCHIVES ===
+  'wjms-radio',                       // ALL - USA
+  'wjzmarchive',                      // ALL - USA
+  'wyceradio',                        // ALL - 2000s-2020s (Michigan)
 
-  // === EAST VILLAGE RADIO SHOWS ===
-  'eastvillageradio',
-  'eastvillageradio-the-holy-sh-t-sound-system',
-  'eastvillageradio-pop-goes-the-future',
-  'eastvillageradio-the-ragged-phonograph-program',
-
-  // === TALK RADIO & NEWS ===
-  'imus-in-the-morning',
-  'Radio-BBC-Radio-5-Live',
-  'pacifica_radio_archives_grammy_2013',
-  'alanwattarchive',
-  '2600-off-the-hook',
-
-  // === COMEDY ===
-  'crapfromthepast',
-
-  // === INTERNATIONAL - EUROPE ===
-  'concertzender',
-  'radiotrinitatvella',
-  'radiafm',
-  'radiovkarchive',
-  'radiowombat',
-  'johnsinclair-rfa',
-  'fav-busca_en_la_basura_',
-  'mart-giovanni-fontana',
-
-  // === INTERNATIONAL - LATIN AMERICA ===
-  'osornoradio',
-  'lamosquitera',
-  'radiocaracasradio',
-  'lavoladoraradioarchive',
-
-  // === INTERNATIONAL - ASIA & MIDDLE EAST ===
-  'radioislaminternational',
-  'hams-radio-japan',
-  'japan-jukebox',
-  'artsakhtv_audio',
-  'cairopublicradio',
-
-  // === ECLECTIC / MIXED ===
-  'radio-eclectica',
-  'the-fox-pirates-cove',
-  'outofthewoods',
-  'musicforthemountain',
-  'quality-radio-productions',
-  'qualityradioproductions',
-  'stalking-the-nightmare-radio',
-  'emptymindsradio',
-  'ohbejoyful',
-  'HogMaw',
-  'ytjdradio',
-
-  // === STATION ARCHIVES ===
-  'radiostationarchives',
-  'radioshowarchive',
-  'radioprograms',
-  'FM99_WNOR_Tommy_and_Rumble',
-  'wjms-radio',
-  'wjzmarchive',
-  'oidradioarchive',
+  // === ECLECTIC / SPECIALTY ===
+  'radio-eclectica',                  // ALL - Multi-genre
+  'the-fox-pirates-cove',             // ALL - Pirate radio
+  'quality-radio-productions',        // ALL - Production archive
+  'SchickeleMix',                     // JAZZ - Classical/jazz mix
 ] as const;
 
-// Pre-grouped collections by LOCATION (continent-based)
+// Pre-grouped collections by CONTINENT
 // Maps continent filter keywords to relevant collections
-const COLLECTIONS_BY_LOCATION: Record<string, string[]> = {
-  // North America (USA, Canada)
+const COLLECTIONS_BY_CONTINENT: Record<string, string[]> = {
   'North America': [
-    'oldtimeradio', 'suspenseradio', 'fibbermcgee', 'abbottandcostelloradio',
-    'armedforcesradioservice', 'joy-boys', 'bobandraytoaster',
-    'hiphopradioarchive', 'uprisingradio', 'eastvillageradio-the-bobbito-garcia-radio-show',
-    'kornradio', 'radiofreecrockett', 'SchickeleMix',
-    'eastvillageradio', 'eastvillageradio-mystic-sound', 'eastvillageradio-minimal-wave',
-    'eastvillageradio-peer-pressure', 'eastvillageradio-the-holy-sh-t-sound-system',
-    'eastvillageradio-forty-deuce', 'eastvillageradio-jamaica-rock',
-    'eastvillageradio-pop-goes-the-future', 'eastvillageradio-the-ragged-phonograph-program',
-    'eastvillageradio-radioingrid', 'eastvillageradio-black-and-blue-take-over',
-    'imus-in-the-morning', 'pacifica_radio_archives_grammy_2013', 'alanwattarchive',
-    '2600-off-the-hook', 'crapfromthepast', 'the-fox-pirates-cove', 'outofthewoods',
-    'musicforthemountain', 'quality-radio-productions', 'qualityradioproductions',
-    'FM99_WNOR_Tommy_and_Rumble', 'wjms-radio', 'wjzmarchive', 'HogMaw', 'ytjdradio',
-    'radiostationarchives', 'radioshowarchive', 'radioprograms',
+    'oldtimeradio',
+    'suspenseradio',
+    'fibbermcgee',
+    'abbottandcostelloradio',
+    'armedforcesradioservice',
+    'bobandraytoaster',
+    'joy-boys',
+    'OTRR_Certified_Lux_Radio_Theatre',
+    'OrsonWelles_MercuryTheatre',
+    'OrsonWelles_CampbellPlayhouse',
+    'hiphopradioarchive',
+    'uprisingradio',
+    'eastvillageradio',
+    'eastvillageradio-the-bobbito-garcia-radio-show',
+    'eastvillageradio-minimal-wave',
+    'eastvillageradio-mystic-sound',
+    'eastvillageradio-peer-pressure',
+    'eastvillageradio-the-holy-sh-t-sound-system',
+    'eastvillageradio-forty-deuce',
+    'eastvillageradio-jamaica-rock',
+    'eastvillageradio-pop-goes-the-future',
+    'eastvillageradio-the-ragged-phonograph-program',
+    'eastvillageradio-radioingrid',
+    'eastvillageradio-black-and-blue-take-over',
+    'imus-in-the-morning',
+    'pacifica_radio_archives_grammy_2013',
+    '2600-off-the-hook',
+    'crapfromthepast',
+    'radiofreecrockett',
+    'FM99_WNOR_Tommy_and_Rumble',
+    'wjms-radio',
+    'wjzmarchive',
+    'wyceradio',
+    'outofthewoods',
+    'alanwattarchive',
   ],
-  // South America (Chile, Brazil, Argentina, Venezuela, etc.)
+
   'South America': [
-    'osornoradio', 'lamosquitera', 'radiocaracasradio', 'lavoladoraradioarchive',
-    'fav-psychobilly_brasil', 'psicotropicodelia', 'radiotiana',
-    'radiostationarchives', 'radioshowarchive', 'radioprograms',
+    'osornoradio',
+    'lamosquitera',
+    'radiocaracasradio',
+    'lavoladoraradioarchive',
+    'psicotropicodelia',
   ],
-  // Europe (UK, Netherlands, Spain, Germany, France, Russia, Italy, Finland, etc.)
+
   'Europe': [
-    'Radio-BBC-Radio-5-Live', 'moodybluesradio', 'concertzender', 'radiotrinitatvella',
-    'radiafm', 'radiovkarchive', 'radiowombat', 'johnsinclair-rfa',
-    'fav-busca_en_la_basura_', 'mart-giovanni-fontana', 'finnish-electronic-mixtapes',
-    'vanzemlja-sounds', 'radiotiana',
-    'radiostationarchives', 'radioshowarchive', 'radioprograms',
+    // UK
+    'Radio-BBC-Radio-5-Live',
+    'uk-rave-mixtapes-1988-1993-complete',
+    'death-is-not-the-end-london-pirate-radio-adverts-1984-1993-vol.-1',
+    'PirateYearsRadioShowWithPaulPeters',
+    'EdMorenosTributeToTomPepperChairmanRadioInvictaAutum1964',
+    'radiobooks',
+    'utmafolkshow',
+    // Other Europe
+    'concertzender',
+    'radiotrinitatvella',
+    'radiafm',
+    'radiovkarchive',
+    'radiowombat',
+    'johnsinclair-rfa',
   ],
-  // Asia (Nepal, Japan, etc.)
+
   'Asia': [
-    'ujyaaloradio', 'hams-radio-japan', 'japan-jukebox', 'radiotiana',
-    'radiostationarchives', 'radioshowarchive', 'radioprograms',
+    'ujyaaloradio',
+    'hams-radio-japan',
+    'radio-pakistan-general-overseas-svc-han',
+    'sraa-radio-thailand-june-13-2016',
   ],
-  // Middle East (includes Islamic broadcasting, Armenia, Egypt)
+
   'Middle East': [
-    'radioislaminternational', 'artsakhtv_audio', 'cairopublicradio', 'radiotiana',
-    'radiostationarchives', 'radioshowarchive', 'radioprograms',
+    'radioislaminternational',
+    'artsakhtv_audio',
+    'cairopublicradio',
+    'sraa-syrian-radio-amp-television-1970s-recording',
   ],
-  // Africa
+
   'Africa': [
-    'radiotiana', 'radioislaminternational', 'cairopublicradio',
-    'radiostationarchives', 'radioshowarchive', 'radioprograms',
+    'cairopublicradio',
+    'sraa-voice-of-kenya-circa-1975',
+    'modernghanaradiocenterrewind-2010-daasebreonhighliferadiolive',
+    '2ModernGhanaRadioCenteronlineAudioConverter.comHIGHLIFERADIOARCHIVESDAASEBRETIME',
+    'GHANAARCHIVES-EMERGINGCOMMUNITYRADIOKAKAGHANAMEDIA-NKWAFM',
+    'G.A.DABLEKUMAOPAMFORADIO',
+  ],
+
+  'Australia': [
+    'stalking-the-nightmare-radio',
+  ],
+
+  'WORLD': [
+    'radiostationarchives',
+    'radioshowarchive',
+    'radioprograms',
+    'radio-eclectica',
+    'the-fox-pirates-cove',
+    'quality-radio-productions',
+    'SchickeleMix',
+    'vanzemlja-sounds',
+    'armedforcesradioservice',
+    'ShortwavePirateRadio',
+    'shortwave-pirate-radio-studio-recordings',
   ],
 };
 
-// Pre-grouped collections by GENRE
+// Pre-grouped collections by GENRE (New System)
+// Genres: ALL, FOLK, JAZZ, HIPHOP, CLASSICAL, COUNTRY/BLUES, ELECTRONIC, TALK, ROCK
 const COLLECTIONS_BY_GENRE: Record<string, string[]> = {
-  // Jazz
-  'jazz': [
-    'SchickeleMix', 'oldtimeradio', 'radiofreecrockett', 'eastvillageradio',
-    'concertzender', 'pacifica_radio_archives_grammy_2013',
+  // ALL - Multi-genre stations
+  'all': [
+    'oldtimeradio',
+    'armedforcesradioservice',
+    'eastvillageradio',
+    'eastvillageradio-the-holy-sh-t-sound-system',
+    'eastvillageradio-mystic-sound',
+    'eastvillageradio-pop-goes-the-future',
+    'wyceradio',
+    'radiostationarchives',
+    'radioshowarchive',
+    'radioprograms',
+    'radio-eclectica',
+    'quality-radio-productions',
+    'cairopublicradio',
+    'sraa-voice-of-kenya-circa-1975',
+    'radio-pakistan-general-overseas-svc-han',
+    'radiotrinitatvella',
+    'radiovkarchive',
+    'osornoradio',
+    'lamosquitera',
+    'radiocaracasradio',
+    'lavoladoraradioarchive',
+    'ujyaaloradio',
+    'hams-radio-japan',
+    'artsakhtv_audio',
+    'radiafm',
+    'wjms-radio',
+    'wjzmarchive',
+    'the-fox-pirates-cove',
+    'ShortwavePirateRadio',
+    'shortwave-pirate-radio-studio-recordings',
+    'radiowombat',
+    'sraa-radio-thailand-june-13-2016',
+    'sraa-syrian-radio-amp-television-1970s-recording',
+    'stalking-the-nightmare-radio',
+    // Ghana stations
+    'modernghanaradiocenterrewind-2010-daasebreonhighliferadiolive',
+    '2ModernGhanaRadioCenteronlineAudioConverter.comHIGHLIFERADIOARCHIVESDAASEBRETIME',
+    'GHANAARCHIVES-EMERGINGCOMMUNITYRADIOKAKAGHANAMEDIA-NKWAFM',
+    'G.A.DABLEKUMAOPAMFORADIO',
   ],
-  // Blues
-  'blues': [
-    'eastvillageradio-black-and-blue-take-over', 'radiofreecrockett', 'oldtimeradio',
-    'SchickeleMix', 'pacifica_radio_archives_grammy_2013',
+
+  // HIPHOP - Hip-hop radio
+  'hiphop': [
+    'hiphopradioarchive',
+    'uprisingradio',
+    'eastvillageradio-the-bobbito-garcia-radio-show',
+    'eastvillageradio-forty-deuce',
   ],
-  // Rock
-  'rock': [
-    'kornradio', 'moodybluesradio', 'radiofreecrockett', 'eastvillageradio-peer-pressure',
-    'fav-psychobilly_brasil', 'FM99_WNOR_Tommy_and_Rumble', 'HogMaw',
-  ],
-  // Hip-hop / Rap
   'hip-hop': [
-    'hiphopradioarchive', 'uprisingradio', 'eastvillageradio-the-bobbito-garcia-radio-show',
-    'eastvillageradio', 'eastvillageradio-forty-deuce',
+    'hiphopradioarchive',
+    'uprisingradio',
+    'eastvillageradio-the-bobbito-garcia-radio-show',
+    'eastvillageradio-forty-deuce',
   ],
   'rap': [
-    'hiphopradioarchive', 'uprisingradio', 'eastvillageradio-the-bobbito-garcia-radio-show',
-    'eastvillageradio', 'eastvillageradio-forty-deuce',
+    'hiphopradioarchive',
+    'uprisingradio',
+    'eastvillageradio-the-bobbito-garcia-radio-show',
+    'eastvillageradio-forty-deuce',
   ],
-  'hip hop': [
-    'hiphopradioarchive', 'uprisingradio', 'eastvillageradio-the-bobbito-garcia-radio-show',
-    'eastvillageradio', 'eastvillageradio-forty-deuce',
-  ],
-  // Soul / Funk / R&B
-  'soul': [
-    'eastvillageradio-black-and-blue-take-over', 'hiphopradioarchive', 'uprisingradio',
+
+  // TALK - News, sports, comedy, talk shows, drama
+  'talk': [
+    'suspenseradio',
+    'fibbermcgee',
+    'abbottandcostelloradio',
+    'bobandraytoaster',
+    'joy-boys',
+    'crapfromthepast',
+    'Radio-BBC-Radio-5-Live',
+    'imus-in-the-morning',
     'pacifica_radio_archives_grammy_2013',
+    '2600-off-the-hook',
+    'alanwattarchive',
+    'radiobooks',
+    'radioislaminternational',
+    'PirateYearsRadioShowWithPaulPeters',
+    'FM99_WNOR_Tommy_and_Rumble',
+    'OTRR_Certified_Lux_Radio_Theatre',
+    'OrsonWelles_MercuryTheatre',
+    'OrsonWelles_CampbellPlayhouse',
   ],
-  'r&b': [
-    'eastvillageradio-black-and-blue-take-over', 'hiphopradioarchive', 'uprisingradio',
-  ],
-  // Classical
-  'classical': [
-    'SchickeleMix', 'concertzender', 'radiafm', 'pacifica_radio_archives_grammy_2013',
-  ],
-  // Country / Folk
-  'country': [
-    'radiofreecrockett', 'oldtimeradio', 'outofthewoods', 'musicforthemountain',
-    'wjzmarchive',
-  ],
-  'folk': [
-    'radiofreecrockett', 'outofthewoods', 'musicforthemountain', 'pacifica_radio_archives_grammy_2013',
-  ],
-  // Electronic / Synth
-  'electronic': [
-    'eastvillageradio-minimal-wave', 'eastvillageradio-radioingrid', 'radiafm',
-    'finnish-electronic-mixtapes', 'psicotropicodelia', 'vanzemlja-sounds',
-  ],
-  'synth': [
-    'eastvillageradio-minimal-wave', 'eastvillageradio-radioingrid', 'finnish-electronic-mixtapes',
-  ],
-  // News
   'news': [
-    'Radio-BBC-Radio-5-Live', 'pacifica_radio_archives_grammy_2013', 'armedforcesradioservice',
-    'radiostationarchives', 'radioshowarchive',
+    'Radio-BBC-Radio-5-Live',
+    'pacifica_radio_archives_grammy_2013',
+    '2600-off-the-hook',
   ],
-  // Comedy
   'comedy': [
-    'oldtimeradio', 'fibbermcgee', 'abbottandcostelloradio', 'joy-boys', 'bobandraytoaster',
-    'crapfromthepast', 'SchickeleMix',
+    'fibbermcgee',
+    'abbottandcostelloradio',
+    'bobandraytoaster',
+    'joy-boys',
+    'crapfromthepast',
   ],
-  // Sports
-  'sports': [
-    'Radio-BBC-Radio-5-Live', 'radiostationarchives', 'radioshowarchive',
+
+  // ROCK - Rock music radio
+  'rock': [
+    'radiofreecrockett',
+    'eastvillageradio-peer-pressure',
+    'eastvillageradio-jamaica-rock',
+    'radiafm',
+    'johnsinclair-rfa',
+    'EdMorenosTributeToTomPepperChairmanRadioInvictaAutum1964',
+  ],
+
+  // JAZZ - Jazz music radio
+  'jazz': [
+    'SchickeleMix',
+    'eastvillageradio-black-and-blue-take-over',
+  ],
+
+  // ELECTRONIC - Electronic, dance, techno, house, etc.
+  'electronic': [
+    'eastvillageradio-minimal-wave',
+    'eastvillageradio-radioingrid',
+    'psicotropicodelia',
+    'vanzemlja-sounds',
+    'uk-rave-mixtapes-1988-1993-complete',
+    'death-is-not-the-end-london-pirate-radio-adverts-1984-1993-vol.-1',
+  ],
+
+  // FOLK - Folk music radio
+  'folk': [
+    'eastvillageradio-the-ragged-phonograph-program',
+    'outofthewoods',
+    'utmafolkshow',
+  ],
+
+  // CLASSICAL - Classical music radio
+  'classical': [
+    'concertzender',
+    'SchickeleMix',
+  ],
+
+  // COUNTRY/BLUES - Country and blues music (combined genre)
+  'country': [
+    'radiofreecrockett',
+    'outofthewoods',
+  ],
+  'blues': [
+    'radiofreecrockett',
+    'outofthewoods',
+    'eastvillageradio-black-and-blue-take-over',
+  ],
+  'country/blues': [
+    'radiofreecrockett',
+    'outofthewoods',
+    'eastvillageradio-black-and-blue-take-over',
   ],
 };
 
-// Pre-grouped collections by ERA
+// Pre-grouped collections by DECADE
 // Note: These are approximate - the era of the broadcast, not necessarily the music
-const COLLECTIONS_BY_ERA: Record<string, string[]> = {
-  // Golden Age Radio (1920s-1960s)
-  '1920-1929': ['oldtimeradio'],
-  '1930-1939': ['oldtimeradio', 'suspenseradio'],
-  '1940-1949': ['oldtimeradio', 'suspenseradio', 'fibbermcgee', 'abbottandcostelloradio', 'armedforcesradioservice'],
-  '1950-1959': ['oldtimeradio', 'suspenseradio', 'fibbermcgee', 'radiofreecrockett', 'joy-boys'],
-  '1960-1969': ['oldtimeradio', 'radiofreecrockett', 'moodybluesradio', 'joy-boys', 'bobandraytoaster'],
-  // 70s-80s
-  '1970-1979': ['radiofreecrockett', 'moodybluesradio', 'radiostationarchives', 'pacifica_radio_archives_grammy_2013'],
-  '1980-1989': ['radiofreecrockett', 'hiphopradioarchive', 'kornradio', 'radiostationarchives', 'FM99_WNOR_Tommy_and_Rumble'],
-  // 90s - Hip-hop golden era
+const COLLECTIONS_BY_DECADE: Record<string, string[]> = {
+  '1930-1939': [
+    'oldtimeradio',
+    'fibbermcgee',
+    'OTRR_Certified_Lux_Radio_Theatre',
+    'OrsonWelles_MercuryTheatre',
+    'OrsonWelles_CampbellPlayhouse',
+  ],
+
+  '1940-1949': [
+    'oldtimeradio',
+    'suspenseradio',
+    'fibbermcgee',
+    'abbottandcostelloradio',
+    'armedforcesradioservice',
+    'radiobooks',
+    'OTRR_Certified_Lux_Radio_Theatre',
+    'OrsonWelles_MercuryTheatre',
+    'OrsonWelles_CampbellPlayhouse',
+  ],
+
+  '1950-1959': [
+    'oldtimeradio',
+    'suspenseradio',
+    'fibbermcgee',
+    'joy-boys',
+    'bobandraytoaster',
+    'armedforcesradioservice',
+    'pacifica_radio_archives_grammy_2013',
+    'radiobooks',
+    'radio-pakistan-general-overseas-svc-han',
+    'PirateYearsRadioShowWithPaulPeters',
+    'OTRR_Certified_Lux_Radio_Theatre',
+  ],
+
+  '1960-1969': [
+    'oldtimeradio',
+    'joy-boys',
+    'bobandraytoaster',
+    'pacifica_radio_archives_grammy_2013',
+    'armedforcesradioservice',
+    'radiobooks',
+    'radio-pakistan-general-overseas-svc-han',
+    'EdMorenosTributeToTomPepperChairmanRadioInvictaAutum1964',
+    'PirateYearsRadioShowWithPaulPeters',
+  ],
+
+  '1970-1979': [
+    'bobandraytoaster',
+    'radiofreecrockett',
+    'pacifica_radio_archives_grammy_2013',
+    'imus-in-the-morning',
+    'armedforcesradioservice',
+    'radiobooks',
+    'sraa-voice-of-kenya-circa-1975',
+    'radio-pakistan-general-overseas-svc-han',
+    'sraa-syrian-radio-amp-television-1970s-recording',
+    'PirateYearsRadioShowWithPaulPeters',
+  ],
+
+  '1980-1989': [
+    'hiphopradioarchive',
+    'radiofreecrockett',
+    '2600-off-the-hook',
+    'FM99_WNOR_Tommy_and_Rumble',
+    'pacifica_radio_archives_grammy_2013',
+    'imus-in-the-morning',
+    'armedforcesradioservice',
+    'radiobooks',
+    'radio-pakistan-general-overseas-svc-han',
+    'death-is-not-the-end-london-pirate-radio-adverts-1984-1993-vol.-1',
+    'uk-rave-mixtapes-1988-1993-complete',
+    'ShortwavePirateRadio',
+    'shortwave-pirate-radio-studio-recordings',
+    'PirateYearsRadioShowWithPaulPeters',
+  ],
+
   '1990-1999': [
-    'hiphopradioarchive', 'uprisingradio', 'eastvillageradio-the-bobbito-garcia-radio-show',
-    'radiofreecrockett', 'kornradio', 'imus-in-the-morning',
-    'radiostationarchives', 'radioshowarchive', 'radioprograms',
+    'hiphopradioarchive',
+    'uprisingradio',
+    'eastvillageradio-the-bobbito-garcia-radio-show',
+    'imus-in-the-morning',
+    '2600-off-the-hook',
+    'FM99_WNOR_Tommy_and_Rumble',
+    'pacifica_radio_archives_grammy_2013',
+    'Radio-BBC-Radio-5-Live',
+    'armedforcesradioservice',
+    'radiobooks',
+    'radio-pakistan-general-overseas-svc-han',
+    'uk-rave-mixtapes-1988-1993-complete',
+    'death-is-not-the-end-london-pirate-radio-adverts-1984-1993-vol.-1',
+    'ShortwavePirateRadio',
+    'shortwave-pirate-radio-studio-recordings',
+    'PirateYearsRadioShowWithPaulPeters',
   ],
-  // 2000s+ - Modern radio / EVR era
+
   '2000-2009': [
-    'eastvillageradio', 'eastvillageradio-mystic-sound', 'eastvillageradio-minimal-wave',
-    'eastvillageradio-peer-pressure', 'eastvillageradio-the-holy-sh-t-sound-system',
-    'eastvillageradio-forty-deuce', 'eastvillageradio-jamaica-rock',
-    'eastvillageradio-pop-goes-the-future', 'eastvillageradio-the-ragged-phonograph-program',
-    'eastvillageradio-radioingrid', 'eastvillageradio-black-and-blue-take-over',
-    'hiphopradioarchive', 'uprisingradio', 'Radio-BBC-Radio-5-Live',
-    'radiostationarchives', 'radioshowarchive', 'radioprograms', 'SchickeleMix', 'radiotiana', 'radiafm',
+    'eastvillageradio',
+    'eastvillageradio-minimal-wave',
+    'eastvillageradio-mystic-sound',
+    'eastvillageradio-peer-pressure',
+    'eastvillageradio-the-holy-sh-t-sound-system',
+    'eastvillageradio-forty-deuce',
+    'eastvillageradio-jamaica-rock',
+    'eastvillageradio-pop-goes-the-future',
+    'eastvillageradio-the-ragged-phonograph-program',
+    'eastvillageradio-radioingrid',
+    'eastvillageradio-black-and-blue-take-over',
+    'Radio-BBC-Radio-5-Live',
+    '2600-off-the-hook',
+    'FM99_WNOR_Tommy_and_Rumble',
+    'alanwattarchive',
+    'wyceradio',
+    'concertzender',
+    'imus-in-the-morning',
+    'armedforcesradioservice',
+    'uprisingradio',
+    'pacifica_radio_archives_grammy_2013',
+    'radiobooks',
+    'radio-pakistan-general-overseas-svc-han',
+    'hiphopradioarchive',
+    'ShortwavePirateRadio',
+    'shortwave-pirate-radio-studio-recordings',
+    'stalking-the-nightmare-radio',
   ],
+
   '2010-2019': [
-    'eastvillageradio', 'eastvillageradio-mystic-sound', 'eastvillageradio-minimal-wave',
-    'eastvillageradio-peer-pressure', 'eastvillageradio-the-holy-sh-t-sound-system',
-    'eastvillageradio-forty-deuce', 'eastvillageradio-jamaica-rock',
-    'eastvillageradio-pop-goes-the-future', 'eastvillageradio-the-ragged-phonograph-program',
-    'eastvillageradio-radioingrid', 'eastvillageradio-black-and-blue-take-over',
-    'Radio-BBC-Radio-5-Live', 'finnish-electronic-mixtapes', 'psicotropicodelia',
-    'radiostationarchives', 'radioshowarchive', 'radioprograms', 'radiotiana', 'radiafm',
-    'lamosquitera', 'osornoradio', 'ujyaaloradio', 'concertzender', 'radiotrinitatvella',
+    'eastvillageradio',
+    'Radio-BBC-Radio-5-Live',
+    'concertzender',
+    'ujyaaloradio',
+    'cairopublicradio',
+    'osornoradio',
+    'lamosquitera',
+    'radiocaracasradio',
+    'wyceradio',
+    'alanwattarchive',
+    '2600-off-the-hook',
+    'armedforcesradioservice',
+    'pacifica_radio_archives_grammy_2013',
+    'radiobooks',
+    'radio-pakistan-general-overseas-svc-han',
+    'uprisingradio',
+    'vanzemlja-sounds',
+    'ShortwavePirateRadio',
+    'shortwave-pirate-radio-studio-recordings',
+    'utmafolkshow',
+    'sraa-radio-thailand-june-13-2016',
+    // Ghana stations
+    'modernghanaradiocenterrewind-2010-daasebreonhighliferadiolive',
+    '2ModernGhanaRadioCenteronlineAudioConverter.comHIGHLIFERADIOARCHIVESDAASEBRETIME',
+    'GHANAARCHIVES-EMERGINGCOMMUNITYRADIOKAKAGHANAMEDIA-NKWAFM',
+    'G.A.DABLEKUMAOPAMFORADIO',
   ],
+
   '2020-2029': [
-    'Radio-BBC-Radio-5-Live', 'radiostationarchives', 'radioshowarchive', 'radioprograms',
-    'radiotiana', 'radiafm', 'lamosquitera', 'osornoradio', 'ujyaaloradio',
-    'wjms-radio', 'wjzmarchive', 'concertzender', 'oidradioarchive',
-    'radiotrinitatvella', 'radiovkarchive', 'cairopublicradio',
+    'Radio-BBC-Radio-5-Live',
+    'radiowombat',
+    'cairopublicradio',
+    'radiostationarchives',
+    'radioshowarchive',
+    'radioprograms',
+    'wyceradio',
+    'concertzender',
+    '2600-off-the-hook',
+    'armedforcesradioservice',
+    'radiobooks',
+    'radio-pakistan-general-overseas-svc-han',
+    'vanzemlja-sounds',
+    'ShortwavePirateRadio',
+    'GHANAARCHIVES-EMERGINGCOMMUNITYRADIOKAKAGHANAMEDIA-NKWAFM',
   ],
 };
 
@@ -286,23 +570,23 @@ function getFilteredCollections(
   location: string | null,
   genre: string | null
 ): string[] {
-  let collections = new Set<string>(ALL_COLLECTIONS);
+  let collections = new Set<string>(ALL_RADIO_COLLECTIONS);
 
-  // Filter by era if specified
-  if (era && COLLECTIONS_BY_ERA[era]) {
-    collections = new Set(COLLECTIONS_BY_ERA[era]);
+  // Filter by era/decade if specified
+  if (era && COLLECTIONS_BY_DECADE[era]) {
+    collections = new Set(COLLECTIONS_BY_DECADE[era]);
   }
 
-  // Filter by location - intersect with current set
+  // Filter by location/continent - intersect with current set
   if (location) {
-    // Try to find matching location key
-    const locationKey = Object.keys(COLLECTIONS_BY_LOCATION).find(
+    // Try to find matching continent key
+    const continentKey = Object.keys(COLLECTIONS_BY_CONTINENT).find(
       key => location.toLowerCase().includes(key.toLowerCase()) ||
              key.toLowerCase().includes(location.toLowerCase())
     );
-    if (locationKey) {
-      const locationCollections = new Set(COLLECTIONS_BY_LOCATION[locationKey]);
-      collections = new Set([...collections].filter(c => locationCollections.has(c)));
+    if (continentKey) {
+      const continentCollections = new Set(COLLECTIONS_BY_CONTINENT[continentKey]);
+      collections = new Set([...collections].filter(c => continentCollections.has(c)));
     }
   }
 
@@ -320,7 +604,7 @@ function getFilteredCollections(
 
   // If filtering resulted in empty set, fall back to all collections
   if (collections.size === 0) {
-    return [...ALL_COLLECTIONS];
+    return [...ALL_RADIO_COLLECTIONS];
   }
 
   return [...collections];
