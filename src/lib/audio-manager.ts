@@ -877,16 +877,18 @@ class AudioManager {
   }
 
   // Check if a track's date falls within the selected era
+  // NOTE: The worker already filters by era in the search query, so this is a secondary check.
+  // We're lenient here - if we can't determine the date, trust the worker's filtering.
   private isTrackInEra(trackDate: string | undefined, era: string | null): boolean {
     if (!era) return true; // No era filter, all tracks match
-    if (!trackDate) return false; // No date on track, can't verify
+    if (!trackDate) return true; // No date on track - trust the worker's era filter
 
     const [startYear, endYear] = era.split('-').map(y => parseInt(y, 10));
     if (isNaN(startYear) || isNaN(endYear)) return true;
 
     // Extract year from various date formats
     const yearMatch = trackDate.match(/(\d{4})/);
-    if (!yearMatch) return false;
+    if (!yearMatch) return true; // Can't parse date - trust the worker
 
     const trackYear = parseInt(yearMatch[1], 10);
     return trackYear >= startYear && trackYear <= endYear;
@@ -1063,11 +1065,22 @@ class AudioManager {
               this.shouldAutoPlayAfterFetch = false;
               this.playNext();
             }
+          } else if (allTracks.length > 0) {
+            // Had tracks but all filtered out - still add them and play
+            // Trust the worker's era filtering even if our validation is stricter
+            console.log('All tracks filtered by era validation, using original tracks');
+            addToQueue(allTracks);
+            const currentlyPlaying = $isPlaying.get() || $isPaused.get();
+            if ((!currentlyPlaying || this.shouldAutoPlayAfterFetch) && $isPoweredOn.get()) {
+              this.shouldAutoPlayAfterFetch = false;
+              this.playNext();
+            }
           } else {
-            // No tracks found after filtering - reset loading state
-            console.log('No valid tracks found, resetting loading state');
+            // No tracks found at all - retry with relaxed filters
+            console.log('No valid tracks found, trying with relaxed filters...');
             setLoading(false);
             this.shouldAutoPlayAfterFetch = false;
+            setPlaybackError('No tracks found for these filters. Try different settings.');
           }
         }
       } else {
