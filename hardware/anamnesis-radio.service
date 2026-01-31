@@ -1,0 +1,25 @@
+[Unit]
+Description=Anamnesis.fm Physical Radio
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/timetravlingRadio/hardware
+Environment=PATH=/home/pi/timetravlingRadio/hardware/venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/pi/timetravlingRadio/hardware/venv/bin/python3 radio.py
+Restart=always
+RestartSec=10
+
+# Give access to GPIO, SPI, I2C
+SupplementaryGroups=gpio i2c spi audio
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=anamnesis-radio
+
+[Install]
+WantedBy=multi-user.target
