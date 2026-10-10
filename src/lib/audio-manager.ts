@@ -31,13 +31,13 @@ export class AudioManager {
   private recent: string[] = [];
 
   constructor() {
-    this.audio = new Audio();
+    this.audio = document.querySelector<HTMLAudioElement>('audio[data-radio-audio]') || new Audio();
     this.audio.crossOrigin = 'anonymous';
     this.audio.preload = 'auto';
     this.audio.setAttribute('playsinline', '');
     this.audio.setAttribute('data-radio-audio', '');
     this.audio.hidden = true;
-    document.body.append(this.audio);
+    if (!this.audio.isConnected) document.body.append(this.audio);
     this.setupEvents();
     for (const store of [$era, $location, $genre]) {
       store.listen(() => this.filtersChanged());

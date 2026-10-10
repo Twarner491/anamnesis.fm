@@ -39,6 +39,7 @@ const { title = "anamnesis.fm" } = Astro.props;
     <ClientRouter />
   </head>
   <body>
+    <audio data-radio-audio hidden preload="auto" crossorigin="anonymous" playsinline transition:persist="radio-audio"></audio>
     <slot />
   </body>
 </html>

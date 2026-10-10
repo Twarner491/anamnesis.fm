@@ -1,3 +1,4 @@
+import { $queue } from '../stores/queue';
 import { useEffect } from 'react';
 import { getAudioManager } from '../lib/audio-manager';
 import { DisplayPanel } from './radio/DisplayPanel';
@@ -11,7 +12,9 @@ import { ListenerCount } from './ListenerCount';
 import './Radio.css';
 
 export function Radio() {
-  useEffect(() => { void getAudioManager().fetchMoreTracks(); }, []);
+  useEffect(() => {
+    if ($queue.get().length < 3) void getAudioManager().fetchMoreTracks();
+  }, []);
   return (
     <div className="radio">
       <PageMeta />

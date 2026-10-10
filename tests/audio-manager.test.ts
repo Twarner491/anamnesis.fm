@@ -36,7 +36,7 @@ beforeEach(async () => {
   vi.resetModules(); vi.useFakeTimers();
   vi.stubGlobal('window', {});
   vi.stubGlobal('navigator', {userAgent: 'iPhone', maxTouchPoints: 1});
-  vi.stubGlobal('document', {body: {append() {}}});
+  vi.stubGlobal('document', {querySelector: vi.fn(() => null), body: {append: vi.fn()}});
   vi.stubGlobal('Audio', FakeAudio);
   vi.stubGlobal('fetch', vi.fn(async () => response({items: []})));
   player = await import('../src/stores/player');
@@ -208,4 +208,15 @@ it('keeps gesture-priming audio alive while the initial search is pending', asyn
   expect(FakeAudio.instance.pause).not.toHaveBeenCalled();
   search.resolve(response({items:[]}));
   await starting;
+});
+
+it('reuses the layout audio element so page navigation can preserve playback', async () => {
+  const audio = FakeAudio.instance;
+  Object.assign(audio, {isConnected: true});
+  vi.mocked(document.querySelector).mockReturnValue(audio as unknown as Element);
+  vi.mocked(document.body.append).mockClear();
+  const {AudioManager} = await import('../src/lib/audio-manager');
+  new AudioManager();
+  expect(FakeAudio.instance).toBe(audio);
+  expect(document.body.append).not.toHaveBeenCalled();
 });
