@@ -6,7 +6,7 @@ import './WaveformVisualizer.css';
 
 export function WaveformVisualizer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
   const isPlaying = useStore($isPlaying);
   const isPoweredOn = useStore($isPoweredOn);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
@@ -41,7 +41,7 @@ export function WaveformVisualizer() {
     const width = rect.width;
     const height = rect.height;
 
-    let dataArray: Uint8Array | null = null;
+    let dataArray: Uint8Array<ArrayBuffer> | null = null;
     let bufferLength = 0;
 
     if (analyser) {

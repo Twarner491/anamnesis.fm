@@ -95,14 +95,7 @@ export function powerOff() {
 
 export function setPlaybackError(error: string | null) {
   $playbackError.set(error);
-  // Auto-clear error after 5 seconds
-  if (error) {
-    setTimeout(() => {
-      if ($playbackError.get() === error) {
-        $playbackError.set(null);
-      }
-    }, 5000);
-  }
+
 }
 
 export function clearPlaybackError() {

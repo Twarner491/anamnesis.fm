@@ -1,12 +1,11 @@
 import { useStore } from '@nanostores/react';
-import { $isPlaying, $isPaused, $isLoading, $isPoweredOn, powerOn, powerOff } from '../../stores/player';
+import { $isPlaying, $isLoading, $isPoweredOn, powerOn, powerOff } from '../../stores/player';
 import { $queueLength } from '../../stores/queue';
 import { getAudioManager } from '../../lib/audio-manager';
 import './ControlButtons.css';
 
 export function ControlButtons() {
   const isPlaying = useStore($isPlaying);
-  const isPaused = useStore($isPaused);
   const isLoading = useStore($isLoading);
   const isPoweredOn = useStore($isPoweredOn);
   const queueLength = useStore($queueLength);
@@ -29,8 +28,6 @@ export function ControlButtons() {
 
     if (typeof window !== 'undefined') {
       const audioManager = getAudioManager();
-      // Always allow toggle - this ensures user gesture is captured on mobile
-      // Even during loading, we want to capture the tap to unlock audio
       await audioManager.toggle();
     }
   };
@@ -40,7 +37,7 @@ export function ControlButtons() {
 
     if (typeof window !== 'undefined') {
       const audioManager = getAudioManager();
-      await audioManager.playNext();
+      await audioManager.skip();
     }
   };
 
@@ -64,13 +61,13 @@ export function ControlButtons() {
         </svg>
       </button>
 
-      {/* Play/Pause button - NOT disabled during loading to allow mobile retry taps */}
+      {/* Playback and loading cancellation */}
       <button
         className={`control-button play-button ${isPlaying ? 'playing' : ''} ${!isPoweredOn ? 'disabled' : ''}`}
         onClick={handlePlayPause}
         disabled={!isPoweredOn}
         type="button"
-        aria-label={isPlaying ? 'Pause' : 'Play'}
+        aria-label={isLoading ? 'Cancel loading' : isPlaying ? 'Pause' : 'Play'}
       >
         {isLoading ? (
           <div className="loading-spinner" />

@@ -44,3 +44,27 @@ The radio aggregates true radio broadcasts from these [Internet Archive](https:/
 - [Fork this repository](https://github.com/Twarner491/anamnesis.fm/fork)
 - [Watch this repo](https://github.com/Twarner491/anamnesis.fm/subscription)
 - [Create issue](https://github.com/Twarner491/anamnesis.fm/issues/new)
+
+## Development and verification
+
+Use Node 22.12 or newer. Install with `npm ci` and `npm ci --prefix worker`.
+Run `npm run dev --prefix worker` and `npm run dev` in separate terminals;
+Astro proxies `/api` to the local worker on port 8787.
+
+Before deploying, run `npm test`, `npm run check`, and `npm run build`.
+The tests cover playback cancellation/races, retry limits, era filtering,
+Archive query limits, stream ranges, and Penguin Radio's stable playlist ID.
+
+The frontend deploys to GitHub Pages on a push to `main`. Deploy the API
+separately with `npm run deploy --prefix worker`. Production defaults to
+`https://anamnesis-api.teddy-557.workers.dev`; `PUBLIC_API_URL` can override it.
+
+Penguin Radio uses SoundCloud playlist **2180699213** (11 recordings), at
+[AntarticaFM](https://soundcloud.com/teddywarner/sets/antartica-fm). Using its ID
+keeps account renames from breaking playback. It still depends on SoundCloud's
+public API client ID and progressive MP3 availability. If playback fails, check
+`/api/penguin-radio` and a `Range: bytes=0-1023` request to
+`/api/soundcloud-stream/<soundcloudId>`; expect JSON and a 206 audio/mpeg response.
+
+Archive coverage is finite. Empty region/era/genre combinations show a message;
+the player does not silently replace them with another region or time period.

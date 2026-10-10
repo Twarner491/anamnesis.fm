@@ -1,3 +1,4 @@
+import { $volume } from '../stores/player';
 // Radio static/tuning sound generator using Web Audio API
 
 class TuningSound {
@@ -42,6 +43,7 @@ class TuningSound {
 
     this.initAudio();
     if (!this.audioContext) return;
+    if (this.audioContext.state === 'suspended') void this.audioContext.resume();
 
     try {
       // Create noise source
@@ -57,7 +59,7 @@ class TuningSound {
 
       // Create gain node for volume control
       this.gainNode = this.audioContext.createGain();
-      this.gainNode.gain.value = 0.06; // Very subtle background static
+      this.gainNode.gain.value = 0.06 * $volume.get(); // Very subtle background static
 
       // Connect nodes
       this.noiseNode.connect(this.filterNode);
@@ -93,9 +95,9 @@ class TuningSound {
 
       // Also modulate the gain slightly
       if (this.gainNode) {
-        const gainVariation = 0.04 + Math.random() * 0.04;
+        const gainVariation = (0.04 + Math.random() * 0.04) * $volume.get();
         this.gainNode.gain.setValueAtTime(gainVariation, this.audioContext.currentTime);
-        this.gainNode.gain.linearRampToValueAtTime(0.06, this.audioContext.currentTime + duration);
+        this.gainNode.gain.linearRampToValueAtTime(0.06 * $volume.get(), this.audioContext.currentTime + duration);
       }
     };
 
@@ -126,26 +128,18 @@ class TuningSound {
       this.gainNode.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.1);
     }
 
-    // Stop and disconnect after fade
+    const noise = this.noiseNode;
+    const filter = this.filterNode;
+    const gain = this.gainNode;
+    this.noiseNode = null;
+    this.filterNode = null;
+    this.gainNode = null;
+    this.isPlaying = false;
     setTimeout(() => {
-      if (this.noiseNode) {
-        try {
-          this.noiseNode.stop();
-          this.noiseNode.disconnect();
-        } catch (e) {
-          // Ignore if already stopped
-        }
-        this.noiseNode = null;
-      }
-      if (this.filterNode) {
-        this.filterNode.disconnect();
-        this.filterNode = null;
-      }
-      if (this.gainNode) {
-        this.gainNode.disconnect();
-        this.gainNode = null;
-      }
-      this.isPlaying = false;
+      noise?.stop();
+      noise?.disconnect();
+      filter?.disconnect();
+      gain?.disconnect();
     }, 150);
   }
 

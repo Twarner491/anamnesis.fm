@@ -24,11 +24,17 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Install worker type dependencies
+        run: npm ci --prefix worker
+
+      - name: Check types and playback regressions
+        run: npm run check && npm test
 
       - name: Build with Astro
         run: npm run build

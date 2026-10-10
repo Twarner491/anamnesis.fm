@@ -1,1153 +1,423 @@
 import {
-  $currentTrack,
-  $isPlaying,
-  $isPaused,
-  $isLoading,
-  $volume,
-  $isPoweredOn,
-  setPlaybackState,
-  setLoading,
-  setProgress,
-  setCurrentTrack,
-  setPlaybackError,
-  clearPlaybackError,
+  $currentTrack, $isPlaying, $isPaused, $isLoading, $volume, $isPoweredOn,
+  setPlaybackState, setLoading, setProgress, setCurrentTrack,
+  setPlaybackError, clearPlaybackError,
 } from '../stores/player';
 import { $queue, skipToNext, addToHistory, addToQueue, clearQueue } from '../stores/queue';
 import { $era, $location, $genre } from '../stores/filters';
 import { apiUrl } from './config';
 import { isAntarctica } from './constants';
 import { getTuningSound } from './tuning-sound';
-import type { Track, ArchiveMetadata } from '../types';
+import type { Track, ArchiveItem, ArchiveMetadata } from '../types';
 
-class AudioManager {
-  private audio: HTMLAudioElement | null = null;
+const SILENCE = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+const MAX_ERRORS = 4;
+
+export class AudioManager {
+  private audio: HTMLAudioElement;
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
-  private source: MediaElementAudioSourceNode | null = null;
-  private isInitialized = false;
-  private isFetching = false;
+  private analyserInitialized = false;
+  private primed = false;
+  private wanted = false;
+  private waitingForTrack = false;
+  private generation = 0;
+  private playback = 0;
+  private fetching: Promise<void> | null = null;
+  private requests = new AbortController();
+  private retuneTimer: ReturnType<typeof setTimeout> | undefined;
+  private loadTimer: ReturnType<typeof setTimeout> | undefined;
   private consecutiveErrors = 0;
-  private maxConsecutiveErrors = 5;
-  private isAudioPrimed = false;
-  private isIOS = false;
-  private isAndroid = false;
-  private isMobile = false;
-
-  // Detect mobile platforms for special handling
-  private detectPlatform(): { isIOS: boolean; isAndroid: boolean; isMobile: boolean } {
-    if (typeof window === 'undefined') return { isIOS: false, isAndroid: false, isMobile: false };
-    const ua = window.navigator.userAgent;
-
-    // iOS detection - iPad on iOS 13+ reports as Mac, so check for touch support
-    const isIPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-    const isIPhone = /iPhone/.test(ua);
-    const isIPod = /iPod/.test(ua);
-    const isIOS = isIPad || isIPhone || isIPod;
-
-    // Android detection
-    const isAndroid = /Android/.test(ua);
-
-    // General mobile detection
-    const isMobile = isIOS || isAndroid || /webOS|BlackBerry|Opera Mini|IEMobile/i.test(ua);
-
-    return { isIOS, isAndroid, isMobile };
-  }
+  private recent: string[] = [];
 
   constructor() {
-    if (typeof window !== 'undefined') {
-      const platform = this.detectPlatform();
-      this.isIOS = platform.isIOS;
-      this.isAndroid = platform.isAndroid;
-      this.isMobile = platform.isMobile;
-      console.log('AudioManager: Platform detected =', { iOS: this.isIOS, Android: this.isAndroid, Mobile: this.isMobile });
-
-      this.audio = new Audio();
-      this.audio.crossOrigin = 'anonymous';
-      this.audio.preload = 'auto';
-
-      // Mobile background playback attributes
-      (this.audio as any).playsInline = true;
-      (this.audio as any).webkitPlaysInline = true;
-
-      // iOS needs these for background audio
-      // Setting audio element attributes that help with background playback
-      this.audio.setAttribute('playsinline', '');
-      this.audio.setAttribute('webkit-playsinline', '');
-
-      // Prevent iOS from auto-pausing when screen locks
-      // By keeping a reference that iOS sees as "active media"
-      (this.audio as any).preservesPitch = true;
-
-      this.setupEventListeners();
-      this.setupFilterSubscription();
-      this.setupMediaSession();
-      this.setupBackgroundPlayback();
+    this.audio = new Audio();
+    this.audio.crossOrigin = 'anonymous';
+    this.audio.preload = 'auto';
+    this.audio.setAttribute('playsinline', '');
+    this.audio.setAttribute('data-radio-audio', '');
+    this.audio.hidden = true;
+    document.body.append(this.audio);
+    this.setupEvents();
+    for (const store of [$era, $location, $genre]) {
+      store.listen(() => this.filtersChanged());
     }
+    $volume.subscribe(v => {
+      this.audio.volume = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+    });
+    $isPoweredOn.listen(on => {
+      if (!on) {
+        this.wanted = false;
+        this.invalidate();
+        setLoading(false);
+        setPlaybackState(false, false);
+      }
+    });
+    $isLoading.subscribe(loading => {
+      const tuning = getTuningSound();
+      if (loading && this.wanted && $isPoweredOn.get()) tuning.start();
+      else tuning.stop();
+    });
+    this.setupMediaSession();
   }
 
-  // Keep audio playing in background on mobile
-  private setupBackgroundPlayback() {
-    // Handle visibility changes - resume playback if it was interrupted
-    document.addEventListener('visibilitychange', async () => {
-      if (document.hidden) {
-        // Page is hidden but we're playing - keep audio context alive
-        if ($isPlaying.get() && this.audioContext?.state === 'suspended') {
-          this.audioContext.resume().catch(() => {});
-        }
-        // Try to ensure audio keeps playing
-        if ($isPlaying.get() && this.audio && !this.audio.paused) {
-          console.log('Page hidden, audio still playing - good');
-        }
-      } else {
-        // Page became visible again - check if we need to resume
-        if ($isPlaying.get() && this.audio?.paused && this.audio.src) {
-          console.log('Page visible, resuming paused audio');
-          try {
-            await this.audio.play();
-          } catch (e) {
-            console.log('Could not auto-resume, user interaction needed');
-          }
-        }
-        // Also resume audio context if suspended
-        if (this.audioContext?.state === 'suspended') {
-          this.audioContext.resume().catch(() => {});
-        }
-      }
-    });
-
-    // Handle page freeze/resume (Page Lifecycle API for mobile)
-    document.addEventListener('freeze', () => {
-      console.log('Page frozen');
-    });
-
-    document.addEventListener('resume', async () => {
-      console.log('Page resumed from freeze');
-      // Try to resume audio after page unfreezes
-      if ($isPlaying.get() && this.audio?.paused && this.audio.src) {
-        try {
-          await this.audio.play();
-          console.log('Resumed audio after page unfreeze');
-        } catch (e) {
-          console.log('Could not auto-resume after unfreeze');
-        }
-      }
-      if (this.audioContext?.state === 'suspended') {
-        this.audioContext.resume().catch(() => {});
-      }
-    });
-
-    // iOS audio interruption handling (when another app takes audio focus)
-    if (this.audio) {
-      // iOS fires 'pause' when interrupted by phone call, etc
-      this.audio.addEventListener('pause', () => {
-        if ($isPlaying.get() && !$isPaused.get()) {
-          console.log('Audio paused externally (possible interruption)');
-          // Mark that we were interrupted so we can resume
-          (this as any).wasInterrupted = true;
-        }
-      });
-
-      // When we regain focus, try to resume
-      this.audio.addEventListener('play', () => {
-        (this as any).wasInterrupted = false;
-      });
-    }
-
-    // On iOS, periodically check and resume audio context if needed
-    setInterval(() => {
-      if ($isPlaying.get() && this.audioContext?.state === 'suspended') {
-        this.audioContext.resume().catch(() => {});
-      }
-      // Also check if audio element got paused unexpectedly (and wasn't user-initiated)
-      if ($isPlaying.get() && this.audio?.paused && this.audio.src && !$isPaused.get()) {
-        console.log('Audio paused unexpectedly, attempting resume');
-        this.audio.play().catch(() => {});
-      }
-    }, 2000);
-
-    // Listen for when screen is locked/unlocked on mobile
-    // This uses the Screen Wake Lock API if available (just for detection)
-    if ('wakeLock' in navigator) {
-      document.addEventListener('visibilitychange', () => {
-        // When page becomes visible again, audio may need resuming
-        if (!document.hidden && $isPlaying.get() && this.audio?.paused) {
-          setTimeout(() => {
-            if ($isPlaying.get() && this.audio?.paused && !$isPaused.get()) {
-              console.log('Attempting resume after screen wake');
-              this.audio?.play().catch(() => {});
-            }
-          }, 100);
-        }
-      });
-    }
-  }
-
-  // Set up Media Session API for background playback and lock screen controls
-  private setupMediaSession() {
-    if (!('mediaSession' in navigator)) return;
-
-    // Set action handlers for media controls
-    navigator.mediaSession.setActionHandler('play', async () => {
-      console.log('Media Session: play action');
-      await this.resume();
-    });
-
-    navigator.mediaSession.setActionHandler('pause', () => {
-      console.log('Media Session: pause action');
-      this.pause();
-    });
-
-    navigator.mediaSession.setActionHandler('nexttrack', async () => {
-      console.log('Media Session: next track action');
-      await this.playNext();
-    });
-
-    navigator.mediaSession.setActionHandler('previoustrack', () => {
-      // We don't have previous track functionality, but handle it gracefully
-      console.log('Media Session: previous track action (no-op)');
-    });
-
-    // Handle seeking if supported
-    try {
-      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-        if (this.audio && this.audio.duration) {
-          const skipTime = details.seekOffset || 10;
-          this.audio.currentTime = Math.max(0, this.audio.currentTime - skipTime);
-        }
-      });
-
-      navigator.mediaSession.setActionHandler('seekforward', (details) => {
-        if (this.audio && this.audio.duration) {
-          const skipTime = details.seekOffset || 10;
-          this.audio.currentTime = Math.min(this.audio.duration, this.audio.currentTime + skipTime);
-        }
-      });
-
-      navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (this.audio && details.seekTime !== undefined) {
-          this.audio.currentTime = details.seekTime;
-        }
-      });
-
-      // Stop handler
-      navigator.mediaSession.setActionHandler('stop', () => {
-        console.log('Media Session: stop action');
-        this.pause();
-        if (this.audio) {
-          this.audio.currentTime = 0;
-        }
-      });
-    } catch (e) {
-      // Some handlers may not be supported on all platforms
-      console.log('Some media session handlers not supported:', e);
-    }
-
-    // Update playback state when our state changes
-    $isPlaying.subscribe((playing) => {
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
-      }
-    });
-
-    // Update position state periodically for lock screen progress bar
-    if (this.audio) {
-      this.audio.addEventListener('timeupdate', () => {
-        if (this.audio && this.audio.duration && !isNaN(this.audio.duration) && 'mediaSession' in navigator) {
-          try {
-            navigator.mediaSession.setPositionState({
-              duration: this.audio.duration,
-              playbackRate: this.audio.playbackRate,
-              position: this.audio.currentTime,
-            });
-          } catch (e) {
-            // Position state may not be supported
-          }
-        }
-      });
-    }
-  }
-
-  // Update Media Session metadata with current track info
-  private updateMediaSessionMetadata(track: Track) {
-    if (!('mediaSession' in navigator)) return;
-
-    const year = track.date ? track.date.substring(0, 4) : '';
-    const artist = track.creator || 'Internet Archive';
-
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: track.title || 'Unknown Track',
-      artist: artist,
-      album: year ? `${year} • anamnesis.fm` : 'anamnesis.fm',
-      artwork: [
-        { src: '/favicon.gif', sizes: '512x512', type: 'image/gif' },
-      ],
-    });
-  }
-
-  private setupFilterSubscription() {
-    // Track last known filter values to detect real changes
-    let lastEra: string | null = null;
-    let lastLocation: string | null = null;
-    let lastGenre: string | null = null;
-    let retuneTimeout: ReturnType<typeof setTimeout> | null = null;
-    let isReady = false;
-
-    const triggerRetune = () => {
-      // Only retune if power is on
-      if (!$isPoweredOn.get()) {
-        console.log('[Retune] Blocked: power off');
-        return;
-      }
-
-      console.log('[Retune] Triggering with filters:', {
-        era: $era.get(),
-        location: $location.get(),
-        genre: $genre.get()
-      });
-
-      // Show loading state IMMEDIATELY for user feedback
-      // Don't wait for the debounce - user should see "TUNING" right away
-      setLoading(true);
-
-      // Also stop current playback immediately so user sees the change
-      if (this.audio) {
-        this.audio.pause();
-      }
-
-      // Debounce the actual retune to avoid multiple rapid fetches
-      if (retuneTimeout) clearTimeout(retuneTimeout);
-      retuneTimeout = setTimeout(() => {
-        this.retune();
-      }, 300);
-    };
-
-    // Subscribe to era changes
-    $era.subscribe((era) => {
-      if (!isReady) return;
-      if (era !== lastEra) {
-        console.log('[Era] Changed:', lastEra, '->', era);
-        lastEra = era;
-        triggerRetune();
-      }
-    });
-
-    // Subscribe to location changes
-    $location.subscribe((location) => {
-      if (!isReady) return;
-      if (location !== lastLocation) {
-        console.log('[Location] Changed:', lastLocation, '->', location);
-        lastLocation = location;
-        triggerRetune();
-      }
-    });
-
-    // Subscribe to genre changes
-    $genre.subscribe((genre) => {
-      if (!isReady) return;
-      if (genre !== lastGenre) {
-        console.log('[Genre] Changed:', lastGenre, '->', genre);
-        lastGenre = genre;
-        triggerRetune();
-      }
-    });
-
-    // Initialize after a short delay to let persisted stores hydrate
-    setTimeout(() => {
-      lastEra = $era.get();
-      lastLocation = $location.get();
-      lastGenre = $genre.get();
-      isReady = true;
-      console.log('[Filters] Ready with initial values:', { lastEra, lastLocation, lastGenre });
-    }, 100);
-  }
-
-  // Flag to force auto-play after fetching (set during retune)
-  private shouldAutoPlayAfterFetch = false;
-
-  // Retune: clear queue and fetch new tracks based on current filters
-  async retune() {
-    if (!$isPoweredOn.get()) {
-      console.log('Retune blocked: power off');
-      return;
-    }
-
-    console.log('=== RETUNING RADIO ===');
-    console.log('Filters:', {
-      era: $era.get(),
-      location: $location.get(),
-      genre: $genre.get()
-    });
-
-    // Initialize audio system if not already done
-    if (!this.isInitialized) {
-      this.initializeAnalyser();
-      this.isInitialized = true;
-    }
-
-    // Show loading state (triggers tuning sound)
-    setLoading(true);
-
-    // Stop current playback
-    if (this.audio) {
-      this.audio.pause();
-      this.audio.src = '';
-    }
-
-    // Clear the queue and reset state
-    clearQueue();
-    setCurrentTrack(null);
-    setPlaybackState(false, false);
-
-    // Reset fetching flag and error counter to allow fresh start
-    this.isFetching = false;
-    this.consecutiveErrors = 0;
-
-    // Set flag to auto-play after fetching (retune should always start playing)
-    this.shouldAutoPlayAfterFetch = true;
-
-    // Fetch fresh tracks with new filters
-    await this.fetchMoreTracks();
-  }
-
-  private setupEventListeners() {
-    if (!this.audio) return;
-
-    this.audio.addEventListener('loadstart', () => {
-      setLoading(true);
-    });
-
-    this.audio.addEventListener('canplay', () => {
-      setLoading(false);
-    });
-
+  private setupEvents() {
     this.audio.addEventListener('playing', () => {
+      if (!$currentTrack.get() || !this.wanted) return;
+      clearTimeout(this.loadTimer);
+      this.consecutiveErrors = 0;
+      setLoading(false);
+      clearPlaybackError();
       setPlaybackState(true, false);
     });
-
     this.audio.addEventListener('pause', () => {
-      if (!this.audio?.ended) {
+      if ($currentTrack.get() && !this.audio.ended && !$isLoading.get()) {
         setPlaybackState(false, true);
       }
     });
-
+    this.audio.addEventListener('waiting', () => {
+      if ($currentTrack.get() && this.wanted) {
+        setLoading(true);
+        this.armLoadTimeout(this.playback);
+      }
+    });
     this.audio.addEventListener('timeupdate', () => {
-      if (this.audio && this.audio.duration) {
-        const progress = this.audio.currentTime / this.audio.duration;
-        setProgress(progress, this.audio.currentTime, this.audio.duration);
+      if (!$currentTrack.get()) return;
+      const { currentTime, duration } = this.audio;
+      if (Number.isFinite(duration) && duration > 0) {
+        setProgress(currentTime / duration, currentTime, duration);
       }
     });
-
     this.audio.addEventListener('ended', () => {
-      this.playNext();
+      if ($currentTrack.get() && this.wanted) void this.playNext();
     });
-
-    this.audio.addEventListener('error', (e) => {
-      console.error('Audio error:', e);
-      setLoading(false);
-      // Skip to next on error
-      setTimeout(() => this.playNext(), 1000);
-    });
-
-    // Sync volume from store
-    $volume.subscribe((v) => {
-      if (this.audio) this.audio.volume = v;
-    });
-
-    // Stop playback when powered off
-    $isPoweredOn.subscribe((on) => {
-      if (!on && this.audio) {
-        this.audio.pause();
-        this.audio.src = '';
-      }
-      // Also stop tuning sound when powered off
-      if (!on) {
-        try {
-          getTuningSound().stop();
-        } catch (e) {
-          // Ignore if not available
-        }
-      }
-    });
-
-    // Play tuning static when loading
-    $isLoading.subscribe((loading) => {
-      try {
-        if (loading && $isPoweredOn.get()) {
-          getTuningSound().start();
-        } else {
-          getTuningSound().stop();
-        }
-      } catch (e) {
-        // Ignore if tuning sound not available
-      }
+    this.audio.addEventListener('error', () => {
+      if ($currentTrack.get() && this.wanted) this.playbackFailed(this.playback);
     });
   }
 
-  // Initialize Web Audio API for visualizer (must be called after user interaction)
-  // NOTE: On iOS, we skip MediaElementSource routing to preserve background playback
-  // When audio goes through AudioContext on iOS, it stops when screen is locked
+  private setupMediaSession() {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.setActionHandler('play', () => void this.resume());
+    navigator.mediaSession.setActionHandler('pause', () => this.pause());
+    navigator.mediaSession.setActionHandler('nexttrack', () => void this.playNext());
+    navigator.mediaSession.setActionHandler('stop', () => this.pause());
+    $isPlaying.subscribe(playing => {
+      navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+    });
+  }
+
   initializeAnalyser(): AnalyserNode | null {
-    if (!this.audio || this.analyser) return this.analyser;
-
-    // On iOS, skip Web Audio routing to allow background playback
-    // The visualizer won't work, but audio will continue when screen is off
-    if (this.isIOS) {
-      console.log('iOS detected - skipping Web Audio routing for background playback');
-      // Create AudioContext but don't route audio through it
-      // This still allows us to create an analyser for basic context
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      return null;
-    }
-
+    if (this.analyserInitialized) return this.analyser;
+    this.analyserInitialized = true;
+    // Keep iOS media outside Web Audio so locking the screen doesn't stop it.
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) return null;
     try {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      this.audioContext = new AudioContext();
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
       this.analyser.smoothingTimeConstant = 0.8;
-
-      this.source = this.audioContext.createMediaElementSource(this.audio);
-      this.source.connect(this.analyser);
+      this.audioContext.createMediaElementSource(this.audio).connect(this.analyser);
       this.analyser.connect(this.audioContext.destination);
-
-      return this.analyser;
-    } catch (e) {
-      console.error('Failed to initialize audio analyser:', e);
-      return null;
+    } catch (error) {
+      console.warn('Audio visualization unavailable:', error);
     }
-  }
-
-  getAnalyser(): AnalyserNode | null {
     return this.analyser;
   }
 
-  // Wait for audio to be ready to play (canplay event) with timeout
-  private waitForCanPlay(timeoutMs: number = 15000): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (!this.audio) {
-        reject(new Error('No audio element'));
-        return;
-      }
+  getAnalyser() { return this.analyser; }
 
-      // If already ready, resolve immediately
-      if (this.audio.readyState >= 3) { // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA
-        resolve();
-        return;
-      }
-
-      const audio = this.audio;
-      let resolved = false;
-
-      const cleanup = () => {
-        audio.removeEventListener('canplay', onCanPlay);
-        audio.removeEventListener('canplaythrough', onCanPlay);
-        audio.removeEventListener('error', onError);
-        clearTimeout(timeoutId);
-      };
-
-      const onCanPlay = () => {
-        if (resolved) return;
-        resolved = true;
-        cleanup();
-        console.log('[Mobile] Audio canplay event fired');
-        resolve();
-      };
-
-      const onError = (e: Event) => {
-        if (resolved) return;
-        resolved = true;
-        cleanup();
-        const audioError = (e.target as HTMLAudioElement)?.error;
-        console.error('[Mobile] Audio error during load:', audioError?.message || 'Unknown error');
-        reject(new Error(audioError?.message || 'Audio load failed'));
-      };
-
-      const timeoutId = setTimeout(() => {
-        if (resolved) return;
-        resolved = true;
-        cleanup();
-        console.warn('[Mobile] Audio load timeout after', timeoutMs, 'ms');
-        // Don't reject on timeout - try to play anyway, might work
-        resolve();
-      }, timeoutMs);
-
-      audio.addEventListener('canplay', onCanPlay);
-      audio.addEventListener('canplaythrough', onCanPlay);
-      audio.addEventListener('error', onError);
-    });
+  private unlock() {
+    this.initializeAnalyser();
+    if (this.audioContext?.state === 'suspended') void this.audioContext.resume();
+    if (this.primed || $currentTrack.get()) return;
+    this.primed = true;
+    // Invoke play inside the gesture. Never pause from its asynchronous callback:
+    // by then this element may already be playing the requested recording.
+    this.audio.src = SILENCE;
+    this.audio.loop = true;
+    void this.audio.play().catch(() => {});
   }
 
-  async play(track: Track) {
-    if (!this.audio || !$isPoweredOn.get()) return;
-
-    // Check for too many consecutive errors
-    if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
-      console.error('Too many consecutive playback errors, stopping');
-      setLoading(false);
-      setPlaybackState(false, false);
-      setPlaybackError('Unable to play audio. Tap play to try again.');
-      this.consecutiveErrors = 0; // Reset for next user interaction
-      return;
-    }
-
-    // Clear any previous error when starting fresh playback
-    clearPlaybackError();
-
-    console.log('[Play] Starting playback for:', track.title, this.isMobile ? '(mobile)' : '(desktop)');
-
-    // Resume AudioContext BEFORE attempting playback (critical for mobile)
-    if (this.audioContext?.state === 'suspended') {
-      try {
-        await this.audioContext.resume();
-        console.log('AudioContext resumed before playback');
-      } catch (e) {
-        console.error('Failed to resume AudioContext:', e);
-      }
-    }
-
-    // Add current track to history before switching
-    const current = $currentTrack.get();
-    if (current) {
-      addToHistory(current);
-    }
-
-    setCurrentTrack(track);
-    setLoading(true); // Show loading while we prepare
-
-    // Track this identifier to avoid repeats in future searches
-    this.addToRecentlyPlayed(track.identifier);
-
-    // Update lock screen / notification metadata
-    this.updateMediaSessionMetadata(track);
-
-    // Construct proxied URL - handle SoundCloud tracks differently
-    let proxyUrl: string;
-    if (track.soundcloudId) {
-      // Penguin Radio track from SoundCloud
-      proxyUrl = apiUrl(`api/soundcloud-stream/${track.soundcloudId}`);
-    } else {
-      // Regular Archive.org track
-      const encodedFilename = encodeURIComponent(track.filename);
-      proxyUrl = apiUrl(`api/stream/${track.identifier}/${encodedFilename}`);
-    }
-
-    console.log('[Play] Loading audio from:', proxyUrl.substring(0, 80) + '...');
-    this.audio.src = proxyUrl;
-
-    // Load the audio first (helps on mobile)
+  private invalidate() {
+    this.generation++;
+    this.playback++;
+    this.requests.abort();
+    this.requests = new AbortController();
+    this.fetching = null;
+    this.waitingForTrack = false;
+    clearTimeout(this.retuneTimer);
+    clearTimeout(this.loadTimer);
+    setCurrentTrack(null);
+    this.audio.pause();
+    this.audio.removeAttribute('src');
     this.audio.load();
-
-    try {
-      // On mobile, wait for canplay event before attempting to play
-      // This is critical for reliable playback on iOS and Android
-      if (this.isMobile) {
-        console.log('[Mobile] Waiting for audio to be ready...');
-        await this.waitForCanPlay(15000); // 15 second timeout for slow mobile connections
-      }
-
-      // Now attempt to play
-      await this.audio.play();
-
-      // Success!
-      console.log('[Play] Playback started successfully');
-      setPlaybackState(true, false);
-      this.consecutiveErrors = 0;
-    } catch (e: any) {
-      console.error('[Play] Playback failed:', e.name, e.message);
-
-      // Check if it's a user gesture error (NotAllowedError)
-      if (e.name === 'NotAllowedError') {
-        console.log('[Play] Blocked - needs user gesture. Will retry on next tap.');
-        // Don't count as error - user just needs to tap again
-        // Set as PAUSED (not stopped) so second click calls resume() instead of playNext()
-        // This ensures the second click plays the same track we already loaded
-        setPlaybackState(false, true); // false=not playing, true=paused
-        setLoading(false);
-        setPlaybackError('Tap play to start audio');
-        return;
-      }
-
-      // Check for network errors on mobile - retry once with a delay
-      if (this.isMobile && this.consecutiveErrors === 0 &&
-          (e.name === 'AbortError' || e.name === 'NotSupportedError' || e.message?.includes('load'))) {
-        console.log('[Mobile] Network issue detected, retrying in 1 second...');
-        this.consecutiveErrors++;
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        // Retry by calling play again
-        this.audio.load();
-        try {
-          await this.waitForCanPlay(10000);
-          await this.audio.play();
-          console.log('[Mobile] Retry successful!');
-          setPlaybackState(true, false);
-          this.consecutiveErrors = 0;
-          return;
-        } catch (retryError) {
-          console.error('[Mobile] Retry also failed:', retryError);
-        }
-      }
-
-      this.consecutiveErrors++;
-
-      // Only try next track if we haven't hit the limit
-      if (this.consecutiveErrors < this.maxConsecutiveErrors) {
-        console.log('[Play] Trying next track in 1 second...');
-        setTimeout(() => this.playNext(), 1000);
-      } else {
-        console.error('[Play] Max errors reached, stopping playback attempts');
-        setLoading(false);
-        setPlaybackState(false, false);
-        setPlaybackError('Unable to play audio. Tap play to try again.');
-      }
-    }
+    clearQueue();
+    setProgress(0, 0, 0);
   }
 
-  pause() {
-    this.audio?.pause();
+  private filtersChanged() {
+    this.invalidate();
+    this.consecutiveErrors = 0;
+    this.recent = [];
+    clearPlaybackError();
+    setPlaybackState(false, false);
+    setLoading(this.wanted && $isPoweredOn.get());
+    this.retuneTimer = setTimeout(() => {
+      if (!$isPoweredOn.get()) return;
+      if (this.wanted) void this.playNext();
+      else void this.fetchMoreTracks();
+    }, 250);
   }
 
-  async resume() {
+  async retune() {
+    this.invalidate();
     if (!$isPoweredOn.get()) return;
-
-    // Resume AudioContext if suspended (required for mobile)
-    if (this.audioContext?.state === 'suspended') {
-      try {
-        await this.audioContext.resume();
-        console.log('AudioContext resumed');
-      } catch (e) {
-        console.error('Failed to resume AudioContext:', e);
-      }
-    }
-
-    if (!this.audio) return;
-
-    try {
-      // If there's no source, we need to fetch tracks
-      if (!this.audio.src || this.audio.src === '' || this.audio.src === window.location.href) {
-        console.log('No audio source, fetching tracks...');
-        await this.playNext();
-        return;
-      }
-
-      await this.audio.play();
-    } catch (e: any) {
-      console.error('Resume play failed:', e);
-
-      // If blocked by browser policy, inform user
-      if (e.name === 'NotAllowedError') {
-        console.log('Resume blocked - tap play again');
-        // Keep paused state so next tap tries resume() again
-        setPlaybackState(false, true);
-        setPlaybackError('Tap play to start audio');
-        return;
-      }
-
-      // On other errors, try fetching new tracks
-      if (!$currentTrack.get()) {
-        await this.playNext();
-      }
-    }
+    this.wanted = true;
+    this.consecutiveErrors = 0;
+    await this.playNext();
   }
 
   async toggle() {
     if (!$isPoweredOn.get()) return;
-
-    // CRITICAL: All audio initialization must happen during user gesture on mobile
-    // Do this FIRST, synchronously within the gesture handler
-
-    // 1. Initialize audio system if needed
-    if (!this.isInitialized) {
-      this.initializeAnalyser();
-      this.isInitialized = true;
+    if (this.wanted && ($isPlaying.get() || $isLoading.get())) {
+      this.pause();
+      return;
     }
+    this.unlock();
+    this.consecutiveErrors = 0;
+    this.wanted = true;
+    clearPlaybackError();
+    if ($currentTrack.get() && $isPaused.get()) await this.resume();
+    else await this.playNext();
+  }
 
-    // 2. Always try to resume AudioContext on EVERY user interaction (mobile requirement)
-    // This must happen during the user gesture, not after an await
-    if (this.audioContext?.state === 'suspended') {
-      // Don't await - fire and continue to not lose the gesture
-      this.audioContext.resume().catch(e => {
-        console.error('Failed to resume AudioContext:', e);
+  pause() {
+    this.wanted = false;
+    this.waitingForTrack = false;
+    this.playback++;
+    clearTimeout(this.loadTimer);
+    this.audio.pause();
+    setLoading(false);
+    setPlaybackState(false, Boolean($currentTrack.get()));
+  }
+
+  async resume() {
+    if (!$isPoweredOn.get()) return;
+    this.unlock();
+    this.wanted = true;
+    clearPlaybackError();
+    if (!$currentTrack.get()) return this.playNext();
+    const token = ++this.playback;
+    setLoading(true);
+    this.armLoadTimeout(token);
+    try {
+      await this.audio.play();
+    } catch (error) {
+      this.playbackFailed(token, error);
+    }
+  }
+
+  async play(track: Track) {
+    if (!$isPoweredOn.get() || !this.wanted) return;
+    const token = ++this.playback;
+    clearTimeout(this.loadTimer);
+    const previous = $currentTrack.get();
+    if (previous) addToHistory(previous);
+    setCurrentTrack(track);
+    setProgress(0, 0, 0);
+    setPlaybackState(false, false);
+    setLoading(true);
+    clearPlaybackError();
+    this.recent = [...this.recent.filter(id => id !== track.identifier), track.identifier].slice(-30);
+    if ('mediaSession' in navigator && typeof MediaMetadata !== 'undefined') {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: track.title, artist: track.creator || 'Internet Archive',
+        album: track.isPenguinRadio ? 'Penguin Radio • anamnesis.fm' : 'anamnesis.fm',
       });
     }
-
-    // 3. Prime audio element for mobile Safari (must happen during user gesture)
-    // This unlocks the audio element for future programmatic playback
-    if (this.audio && !this.isAudioPrimed) {
-      try {
-        // Play silent audio synchronously during gesture
-        this.audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-        // Use play() without await to start immediately during gesture
-        const playPromise = this.audio.play();
-        if (playPromise) {
-          playPromise.then(() => {
-            this.audio?.pause();
-            this.isAudioPrimed = true;
-            console.log('Audio element primed for mobile playback');
-          }).catch(e => {
-            // Still mark as primed - the gesture was captured
-            this.isAudioPrimed = true;
-            console.log('Audio priming partial:', e);
-          });
-        }
-      } catch (e) {
-        this.isAudioPrimed = true;
-        console.log('Audio priming skipped:', e);
-      }
+    this.audio.loop = false;
+    this.audio.src = track.soundcloudId
+      ? apiUrl(`api/soundcloud-stream/${track.soundcloudId}`)
+      : apiUrl(`api/stream/${encodeURIComponent(track.identifier)}/${encodeURIComponent(track.filename)}`);
+    this.armLoadTimeout(token);
+    try {
+      // Do not wait for canplay: play() itself waits while retaining gesture intent.
+      await this.audio.play();
+    } catch (error) {
+      this.playbackFailed(token, error);
     }
+  }
 
-    // Now handle the actual play/pause logic
-    if ($isPaused.get()) {
-      await this.resume();
-    } else if ($isPlaying.get()) {
+  private armLoadTimeout(token: number) {
+    clearTimeout(this.loadTimer);
+    this.loadTimer = setTimeout(() => this.playbackFailed(token), 20000);
+  }
+
+  private playbackFailed(token: number, error?: unknown) {
+    if (token !== this.playback || !this.wanted || !$isPoweredOn.get()) return;
+    this.playback++; // Both the media error event and play rejection can fire.
+    clearTimeout(this.loadTimer);
+    if (error instanceof Error && error.name === 'NotAllowedError') {
       this.pause();
-    } else {
-      // Not playing anything - show loading state immediately for user feedback
-      const queue = $queue.get();
-      if (queue.length === 0) {
-        setLoading(true);
-      }
-      await this.playNext();
+      setPlaybackError('Your browser paused audio. Press play to continue.');
+      return;
     }
-  }
-
-  seek(position: number) {
-    if (this.audio && this.audio.duration) {
-      this.audio.currentTime = position * this.audio.duration;
+    if (++this.consecutiveErrors >= MAX_ERRORS) {
+      this.pause();
+      setCurrentTrack(null);
+      setPlaybackState(false, false);
+      setPlaybackError('The recordings are unavailable. Press play to retry.');
+      return;
     }
-  }
-
-  setVolume(level: number) {
-    $volume.set(Math.max(0, Math.min(1, level)));
+    void this.playNext();
   }
 
   async playNext() {
     if (!$isPoweredOn.get()) return;
-
+    clearTimeout(this.retuneTimer);
+    this.wanted = true;
+    this.waitingForTrack = false;
     const next = skipToNext();
-
     if (next) {
-      await this.play(next);
-    } else if (!this.isFetching) {
-      // Queue empty - fetch more tracks
-      await this.fetchMoreTracks();
+      const playing = this.play(next);
+      if ($queue.get().length < 3) void this.fetchMoreTracks();
+      await playing;
+      return;
     }
-
-    // Refill queue if running low
-    if ($queue.get().length < 5 && !this.isFetching) {
-      this.fetchMoreTracks();
-    }
+    this.playback++;
+    clearTimeout(this.loadTimer);
+    setCurrentTrack(null);
+    if (this.audio.src !== SILENCE) this.audio.pause();
+    setPlaybackState(false, false);
+    setLoading(true);
+    this.waitingForTrack = true;
+    await this.fetchMoreTracks();
   }
 
-  // Build search URL with specific filters
-  private buildSearchUrl(era: string | null, location: string | null, genre: string | null): string {
-    const params = new URLSearchParams();
-    if (era) params.set('era', era);
-    if (location) params.set('location', location);
-    if (genre) params.set('genre', genre);
-    // Add cache-busting timestamp to ensure fresh results every time
-    params.set('_t', Date.now().toString());
-    // Pass recently played identifiers to exclude from results
-    const recentIds = this.getRecentlyPlayedIds();
-    if (recentIds.length > 0) {
-      params.set('exclude', recentIds.join(','));
-    }
-    const query = params.toString();
-    return apiUrl(`api/search?${query}`);
+  private async json<T>(path: string, signal: AbortSignal): Promise<T> {
+    const response = await fetch(apiUrl(path), {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
+    });
+    if (!response.ok) throw new Error(`Radio API returned ${response.status}`);
+    return response.json();
   }
 
-  // Track recently played identifiers to avoid repeats
-  private recentlyPlayedIds: string[] = [];
-  private maxRecentIds = 50; // Remember last 50 tracks
-
-  private addToRecentlyPlayed(identifier: string) {
-    // Don't add duplicates
-    if (this.recentlyPlayedIds.includes(identifier)) return;
-    this.recentlyPlayedIds.push(identifier);
-    // Keep list bounded
-    if (this.recentlyPlayedIds.length > this.maxRecentIds) {
-      this.recentlyPlayedIds.shift();
-    }
-  }
-
-  private getRecentlyPlayedIds(): string[] {
-    return this.recentlyPlayedIds.slice(-20); // Send last 20 to exclude
-  }
-
-  private clearRecentlyPlayed() {
-    this.recentlyPlayedIds = [];
-  }
-
-  // Check if a track's date falls within the selected era
-  // NOTE: The worker already filters by era in the search query, so this is a secondary check.
-  // We're lenient here - if we can't determine the date, trust the worker's filtering.
-  private isTrackInEra(trackDate: string | undefined, era: string | null): boolean {
-    if (!era) return true; // No era filter, all tracks match
-    if (!trackDate) return true; // No date on track - trust the worker's era filter
-
-    const [startYear, endYear] = era.split('-').map(y => parseInt(y, 10));
-    if (isNaN(startYear) || isNaN(endYear)) return true;
-
-    // Extract year from various date formats
-    const yearMatch = trackDate.match(/(\d{4})/);
-    if (!yearMatch) return true; // Can't parse date - trust the worker
-
-    const trackYear = parseInt(yearMatch[1], 10);
-    return trackYear >= startYear && trackYear <= endYear;
-  }
-
-  // Try to fetch items with fallback if no results
-  private async fetchWithFallback(): Promise<any[]> {
+  fetchMoreTracks(): Promise<void> {
+    if (this.fetching) return this.fetching;
+    const generation = this.generation;
+    const signal = this.requests.signal;
     const era = $era.get();
     const location = $location.get();
     const genre = $genre.get();
-
-    // Easter egg: Penguin Radio - fetch from SoundCloud playlist
-    if (isAntarctica(location)) {
-      console.log('🐧 Penguin Radio mode activated!');
+    const active = () => generation === this.generation && !signal.aborted;
+    const enqueue = (track: Track) => {
+      if (!active()) return;
+      if ($queue.get().some(t => t.identifier === track.identifier && t.filename === track.filename)) return;
+      addToQueue([track]);
+      if (this.waitingForTrack && this.wanted && $isPoweredOn.get()) {
+        this.waitingForTrack = false;
+        void this.playNext();
+      }
+    };
+    const fetchTracks = async () => {
       try {
-        const response = await fetch(apiUrl('api/penguin-radio'));
-        const data = await response.json();
-        if (data.items?.length > 0) {
-          console.log(`Found ${data.items.length} Penguin Radio tracks`);
-          return data.items;
-        }
-      } catch (e) {
-        console.error('Failed to fetch Penguin Radio tracks:', e);
-      }
-      return [];
-    }
-
-    // Build list of search strategies - NEVER remove era filter if set
-    // Only relax location and genre, era must stay strict
-    const strategies = era ? [
-      // 1. Try with all current filters
-      { era, location, genre, label: 'exact match' },
-      // 2. Drop location, keep era and genre
-      { era, location: null, genre, label: 'without location' },
-      // 3. Drop genre, keep era only
-      { era, location: null, genre: null, label: 'era only' },
-    ] : [
-      // If no era selected, progressively relax filters
-      { era: null, location, genre, label: 'location and genre' },
-      { era: null, location: null, genre, label: 'genre only' },
-      { era: null, location, genre: null, label: 'location only' },
-      { era: null, location: null, genre: null, label: 'no filters' },
-    ];
-
-    for (const strategy of strategies) {
-      const searchUrl = this.buildSearchUrl(strategy.era, strategy.location, strategy.genre);
-
-      // Retry up to 2 times for transient network errors
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const response = await fetch(searchUrl);
-          const data = await response.json();
-
-          if (data.items?.length > 0) {
-            console.log(`Found ${data.items.length} items with strategy: ${strategy.label}`);
-            return data.items;
-          }
-          console.log(`No items found with strategy: ${strategy.label}, trying next...`);
-          break; // No items but request succeeded, try next strategy
-        } catch (e) {
-          console.error(`Search failed for strategy ${strategy.label} (attempt ${attempt + 1}):`, e);
-          if (attempt === 0) {
-            // Wait a bit before retrying
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-        }
-      }
-    }
-
-    return [];
-  }
-
-  async fetchMoreTracks() {
-    if (this.isFetching) return;
-    this.isFetching = true;
-
-    try {
-      // Use fallback search to ensure we get results
-      const items = await this.fetchWithFallback();
-
-      if (items.length > 0) {
-        // Check if these are Penguin Radio tracks (already have all info)
-        const isPenguinRadio = items[0]?.isPenguinRadio || items[0]?.soundcloudId;
-
-        if (isPenguinRadio) {
-          // Penguin Radio tracks are ready to play - no metadata fetch needed
-          console.log('🐧 Adding Penguin Radio tracks to queue');
-          const tracks: Track[] = items
-            .filter((item: any) => item.soundcloudId)
-            .map((item: any, index: number) => ({
-              identifier: item.identifier,
-              title: item.title || `Penguin Track ${index + 1}`,
-              creator: 'Penguins of Antarctica',
-              duration: item.duration?.toString(),
-              filename: '', // Not used for SoundCloud
-              soundcloudId: item.soundcloudId,
-              isPenguinRadio: true,
-            }));
-
-          addToQueue(tracks);
-
-          // Start playing if not currently playing OR if retune requested auto-play
-          const currentlyPlaying = $isPlaying.get() || $isPaused.get();
-          if ((!currentlyPlaying || this.shouldAutoPlayAfterFetch) && $isPoweredOn.get()) {
-            this.shouldAutoPlayAfterFetch = false;
-            this.playNext();
-          }
+        if (isAntarctica(location)) {
+          const data = await this.json<{items: Track[]}>('api/penguin-radio', signal);
+          for (const track of this.shuffle(data.items)) enqueue({...track, filename: track.filename || ''});
         } else {
-          // Regular Archive.org tracks - need metadata fetch
-          // Shuffle results for variety
-          const shuffled = this.shuffle(items);
-
-          // Get metadata and audio files for first 10 items
-          const trackPromises = shuffled.slice(0, 10).map(async (item: any) => {
-            try {
-              const metaResponse = await fetch(apiUrl(`api/metadata/${item.identifier}`));
-              const meta: ArchiveMetadata = await metaResponse.json();
-
-              if (meta.audioFiles?.length > 0) {
-                // Filter to only actual audio files (exclude video)
-                const validAudioFiles = meta.audioFiles.filter(f => {
-                  const name = f.name?.toLowerCase() || '';
-                  return !name.endsWith('.ogv') &&
-                         !name.endsWith('.mp4') &&
-                         !name.endsWith('.avi') &&
-                         !name.endsWith('.mkv') &&
-                         !name.endsWith('.webm');
+          const params = new URLSearchParams();
+          if (era) params.set('era', era);
+          if (location) params.set('location', location);
+          if (genre) params.set('genre', genre);
+          const excluded = [...new Set([...this.recent, ...$queue.get().map(t => t.identifier)])];
+          if (excluded.length) params.set('exclude', excluded.join(','));
+          const data = await this.json<{items: ArchiveItem[]}>(`api/search?${params}`, signal);
+          const items = this.shuffle(data.items).slice(0, 12);
+          // Only four metadata requests at a time. Enqueue each as it arrives,
+          // so the first recording doesn't wait for the slowest archive item.
+          const consume = async () => {
+            while (items.length && active()) {
+              const item = items.shift()!;
+              try {
+                const meta = await this.json<ArchiveMetadata>(`api/metadata/${encodeURIComponent(item.identifier)}`, signal);
+                if (!active()) return;
+                if (era && meta.date) {
+                  const year = Number(meta.date.match(/\d{4}/)?.[0]);
+                  const [start, end] = era.split('-').map(Number);
+                  if (year && (year < start || year > end)) continue;
+                }
+                const files = meta.audioFiles.filter(f => /\.(mp3|ogg)$/i.test(f.name));
+                const mp3 = files.filter(f => /\.mp3$/i.test(f.name));
+                const candidates = mp3.length ? mp3 : files;
+                const file = candidates[Math.floor(Math.random() * candidates.length)];
+                if (file) enqueue({
+                  identifier: item.identifier, title: meta.title || item.title,
+                  creator: meta.creator || item.creator, date: meta.date || item.date,
+                  filename: file.name, duration: file.duration,
                 });
-
-                if (validAudioFiles.length === 0) return null;
-
-                // Pick a random audio file if multiple exist
-                const audioFile = validAudioFiles[Math.floor(Math.random() * validAudioFiles.length)];
-                return {
-                  identifier: item.identifier,
-                  title: meta.title || item.title || item.identifier,
-                  creator: meta.creator || item.creator,
-                  date: meta.date || item.date,
-                  filename: audioFile.name,
-                  duration: audioFile.duration,
-                } as Track;
+              } catch (error) {
+                if (active()) console.warn(`Recording unavailable: ${item.identifier}`, error);
               }
-            } catch (e) {
-              console.error(`Failed to get metadata for ${item.identifier}:`, e);
             }
-            return null;
-          });
-
-          const allTracks = (await Promise.all(trackPromises)).filter(Boolean) as Track[];
-
-          // Filter tracks to only include those matching the selected era
-          const selectedEra = $era.get();
-          const eraFilteredTracks = allTracks.filter(track => this.isTrackInEra(track.date, selectedEra));
-
-          // Deduplicate by creator to ensure variety across different shows
-          const seenCreators = new Set<string>();
-          const tracks = eraFilteredTracks.filter(track => {
-            const creator = (track.creator || track.identifier?.split('-')[0] || 'unknown').toLowerCase().trim();
-            if (seenCreators.has(creator)) {
-              return false; // Skip duplicate creator
-            }
-            seenCreators.add(creator);
-            return true;
-          });
-
-          console.log(`After era validation: ${eraFilteredTracks.length}/${allTracks.length} tracks, after dedup: ${tracks.length} unique shows`);
-
-          if (tracks.length > 0) {
-            addToQueue(tracks);
-
-            // Start playing if not currently playing OR if retune requested auto-play
-            const currentlyPlaying = $isPlaying.get() || $isPaused.get();
-            if ((!currentlyPlaying || this.shouldAutoPlayAfterFetch) && $isPoweredOn.get()) {
-              this.shouldAutoPlayAfterFetch = false;
-              this.playNext();
-            }
-          } else if (allTracks.length > 0) {
-            // Had tracks but all filtered out - still add them and play
-            // Trust the worker's era filtering even if our validation is stricter
-            console.log('All tracks filtered by era validation, using original tracks');
-            addToQueue(allTracks);
-            const currentlyPlaying = $isPlaying.get() || $isPaused.get();
-            if ((!currentlyPlaying || this.shouldAutoPlayAfterFetch) && $isPoweredOn.get()) {
-              this.shouldAutoPlayAfterFetch = false;
-              this.playNext();
-            }
-          } else {
-            // No tracks found at all - retry with relaxed filters
-            console.log('No valid tracks found, trying with relaxed filters...');
-            setLoading(false);
-            this.shouldAutoPlayAfterFetch = false;
-            setPlaybackError('No tracks found for these filters. Try different settings.');
-          }
+          };
+          await Promise.all(Array.from({length: Math.min(4, items.length)}, consume));
         }
-      } else {
-        // No items found at all - reset loading state
-        console.log('No items found from search, resetting loading state');
-        setLoading(false);
-        this.shouldAutoPlayAfterFetch = false;
+        if (active() && this.waitingForTrack) {
+          this.waitingForTrack = false;
+          this.wanted = false;
+          setLoading(false);
+          setPlaybackError(isAntarctica(location)
+            ? 'Penguin Radio is unavailable. Please try again later.'
+            : 'No recordings match. Try another era, region, or genre.');
+        }
+      } catch (error) {
+        if (!active()) return;
+        if (this.waitingForTrack) {
+          this.waitingForTrack = false;
+          this.wanted = false;
+          setLoading(false);
+          setPlaybackError(isAntarctica(location)
+            ? 'Penguin Radio is unavailable. Please try again later.'
+            : 'Could not reach the archive. Press play to retry.');
+        }
+      } finally {
+        if (active()) this.fetching = null;
       }
-    } catch (e) {
-      console.error('Failed to fetch tracks:', e);
-      // Reset loading state on error
-      setLoading(false);
-      this.shouldAutoPlayAfterFetch = false;
-    } finally {
-      this.isFetching = false;
-    }
+    };
+    this.fetching = fetchTracks();
+    return this.fetching;
   }
 
-  private shuffle<T>(array: T[]): T[] {
-    const copy = [...array];
-    for (let i = copy.length - 1; i > 0; i--) {
+  private shuffle<T>(items: T[]): T[] {
+    const result = [...items];
+    for (let i = result.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
+      [result[i], result[j]] = [result[j], result[i]];
     }
-    return copy;
+    return result;
   }
 
-  // Start the radio (called when user powers on)
+  seek(position: number) {
+    if (Number.isFinite(this.audio.duration)) this.audio.currentTime = Math.max(0, Math.min(1, position)) * this.audio.duration;
+  }
+  setVolume(level: number) { $volume.set(Math.max(0, Math.min(1, level))); }
+  async skip() {
+    this.unlock();
+    this.consecutiveErrors = 0;
+    await this.playNext();
+  }
   async start() {
-    if (!this.isInitialized) {
-      this.initializeAnalyser();
-      this.isInitialized = true;
-    }
-
-    // Resume AudioContext if suspended (required for mobile - must happen during user gesture)
-    if (this.audioContext?.state === 'suspended') {
-      try {
-        await this.audioContext.resume();
-        console.log('AudioContext resumed successfully');
-      } catch (e) {
-        console.error('Failed to resume AudioContext:', e);
-      }
-    }
-
-    // If no tracks in queue, fetch some
-    if ($queue.get().length === 0) {
-      await this.fetchMoreTracks();
-    } else {
-      // Resume playback
-      await this.playNext();
-    }
+    this.unlock();
+    this.wanted = true;
+    this.consecutiveErrors = 0;
+    await this.playNext();
   }
 }
 
-// Singleton instance
 let audioManagerInstance: AudioManager | null = null;
-
 export function getAudioManager(): AudioManager {
-  if (typeof window === 'undefined') {
-    throw new Error('AudioManager can only be used in browser');
-  }
-
-  if (!audioManagerInstance) {
-    audioManagerInstance = new AudioManager();
-  }
-
-  return audioManagerInstance;
+  if (typeof window === 'undefined') throw new Error('AudioManager requires a browser');
+  return audioManagerInstance ??= new AudioManager();
 }
-
-export type { AudioManager };

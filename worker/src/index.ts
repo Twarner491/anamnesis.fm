@@ -593,19 +593,13 @@ function getFilteredCollections(
   // Filter by genre - intersect with current set
   if (genre) {
     const genreLower = genre.toLowerCase();
-    const genreKey = Object.keys(COLLECTIONS_BY_GENRE).find(
-      key => genreLower.includes(key) || key.includes(genreLower)
-    );
+    const genreKey = Object.hasOwn(COLLECTIONS_BY_GENRE, genreLower) ? genreLower : undefined;
     if (genreKey) {
       const genreCollections = new Set(COLLECTIONS_BY_GENRE[genreKey]);
       collections = new Set([...collections].filter(c => genreCollections.has(c)));
     }
   }
 
-  // If filtering resulted in empty set, fall back to all collections
-  if (collections.size === 0) {
-    return [...ALL_RADIO_COLLECTIONS];
-  }
 
   return [...collections];
 }
@@ -613,14 +607,17 @@ function getFilteredCollections(
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    const corsOrigin = env.CORS_ORIGIN || '*';
+    const allowed = new Set([env.CORS_ORIGIN || 'https://anamnesis.fm', 'https://www.anamnesis.fm']);
+    const origin = request.headers.get('Origin');
+    const corsOrigin = origin && allowed.has(origin) ? origin : (env.CORS_ORIGIN || 'https://anamnesis.fm');
 
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         headers: {
           'Access-Control-Allow-Origin': corsOrigin,
-          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+          'Vary': 'Origin',
           'Access-Control-Allow-Headers': 'Content-Type, Range',
           'Access-Control-Max-Age': '86400',
         },
@@ -630,30 +627,31 @@ export default {
     // Add CORS headers to all responses
     const corsHeaders = {
       'Access-Control-Allow-Origin': corsOrigin,
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Vary': 'Origin',
     };
 
     try {
       // Route requests
       if (url.pathname === '/api/search') {
-        return handleSearch(url, corsHeaders);
+        return await handleSearch(url, corsHeaders);
       } else if (url.pathname === '/api/penguin-radio') {
         // Easter egg: Antarctica's Penguin Radio - SoundCloud playlist
-        return handlePenguinRadio(corsHeaders);
+        return await handlePenguinRadio(corsHeaders);
       } else if (url.pathname.startsWith('/api/soundcloud-stream/')) {
         // Stream audio from SoundCloud
         const trackUrl = decodeURIComponent(url.pathname.replace('/api/soundcloud-stream/', ''));
-        return handleSoundCloudStream(trackUrl, request, corsHeaders);
+        return await handleSoundCloudStream(trackUrl, request, corsHeaders);
       } else if (url.pathname.startsWith('/api/metadata/')) {
-        const id = url.pathname.replace('/api/metadata/', '');
-        return handleMetadata(id, corsHeaders);
+        const id = decodeURIComponent(url.pathname.replace('/api/metadata/', ''));
+        return await handleMetadata(id, corsHeaders);
       } else if (url.pathname.startsWith('/api/stream/')) {
         const path = url.pathname.replace('/api/stream/', '');
-        return handleStream(path, request, corsHeaders);
+        return await handleStream(path, request, corsHeaders);
       } else if (url.pathname === '/api/heartbeat') {
-        return handleHeartbeat(env, corsHeaders, request);
+        return await handleHeartbeat(env, corsHeaders, request);
       } else if (url.pathname === '/api/listeners') {
-        return handleListenerCount(env, corsHeaders);
+        return await handleListenerCount(env, corsHeaders);
       } else {
         return new Response('Not found', {
           status: 404,
@@ -673,211 +671,64 @@ export default {
   },
 };
 
-async function handleSearch(
-  url: URL,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  try {
-    const era = url.searchParams.get('era');
-    const location = url.searchParams.get('location');
-    const genre = url.searchParams.get('genre');
-    const page = url.searchParams.get('page') || '1';
-    // Parse excluded identifiers (recently played tracks to avoid)
-    const excludeParam = url.searchParams.get('exclude');
-    const excludeIds = new Set(excludeParam ? excludeParam.split(',').filter(id => id.trim()) : []);
+function textValue(value: unknown): string | undefined {
+  if (Array.isArray(value)) return value.filter(v => typeof v === 'string').join(', ') || undefined;
+  return typeof value === 'string' ? value : typeof value === 'number' ? String(value) : undefined;
+}
 
-    // Get pre-filtered collections based on filters
-    const collections = getFilteredCollections(era, location, genre);
-    const pageNum = parseInt(page, 10) || 1;
-
-    // MULTI-QUERY APPROACH: Make 3 parallel queries with different sorts/offsets
-    // This gives us different "slices" of Archive.org's data for better diversity
-    const sortOptions = [
-      'date desc',
-      'date asc',
-      'downloads desc',
-      'downloads asc',
-      'addeddate desc',
-      'addeddate asc',
-      'titleSorter asc',
-      'titleSorter desc',
-      'publicdate desc',
-      'publicdate asc',
-      'random',
-    ];
-
-    // Pick 3 different sort strategies
-    const shuffledSorts = shuffleArray([...sortOptions]);
-    const selectedSorts = shuffledSorts.slice(0, 3);
-
-    // Build the base query (same for all requests)
-    const buildBaseQuery = (queryCollections: string[]) => {
-      const collectionQuery = queryCollections.map((c) => `collection:${c}`).join(' OR ');
-      let query = `(${collectionQuery})`;
-
-      // PRIORITY 1: Era/Year filter is STRICT - always applied exactly
-      if (era) {
-        const [start, end] = era.split('-');
-        if (start && end) {
-          query += ` AND year:[${start} TO ${end}]`;
-        }
-      }
-
-      // PRIORITY 2: Location filter
-      if (location) {
-        query += ` AND (coverage:(${location}) OR title:(${location}) OR description:(${location}) OR creator:(${location}))`;
-      }
-
-      // PRIORITY 3: Genre filter
-      if (genre) {
-        query += ` AND (subject:(${genre}) OR title:(${genre}) OR description:(${genre}))`;
-      }
-
-      return query;
-    };
-
-    // Create 3 parallel fetch requests with different collection subsets and sorts
-    const fetchPromises = selectedSorts.map(async (sortOrder, index) => {
-      // Each query gets a different random subset of collections
-      let queryCollections = collections;
-      if (collections.length > 8) {
-        const shuffledCollections = shuffleArray([...collections]);
-        const subsetSize = 5 + Math.floor(Math.random() * 8);
-        queryCollections = shuffledCollections.slice(0, Math.min(subsetSize, collections.length));
-      }
-
-      const query = buildBaseQuery(queryCollections);
-      const rows = 150; // Fetch 150 per query, 3 queries = up to 450 items
-
-      // Each query uses a different offset range to hit different parts of the data
-      const baseOffset = index * 500; // 0, 500, 1000
-      const randomOffset = sortOrder === 'random' ? 0 : baseOffset + Math.floor(Math.random() * 500);
-      const startIndex = ((pageNum - 1) * rows) + randomOffset;
-
-      const params = new URLSearchParams();
-      params.set('q', query);
-      params.append('fl[]', 'identifier');
-      params.append('fl[]', 'title');
-      params.append('fl[]', 'date');
-      params.append('fl[]', 'year');
-      params.append('fl[]', 'creator');
-      params.append('fl[]', 'coverage');
-      params.append('fl[]', 'subject');
-      params.append('fl[]', 'description');
-      params.set('sort[]', sortOrder);
-      params.set('rows', String(rows));
-      params.set('start', String(startIndex));
-      params.set('output', 'json');
-
-      const archiveUrl = `https://archive.org/advancedsearch.php?${params.toString()}`;
-
-      try {
-        const response = await fetch(archiveUrl, {
-          headers: { 'User-Agent': 'anamnesis.fm/1.0' },
-        });
-
-        if (!response.ok) {
-          console.error(`Query ${index} failed: ${response.status}`);
-          return { items: [], numFound: 0 };
-        }
-
-        const data = await response.json() as {
-          response?: { docs?: unknown[]; numFound?: number };
-        };
-
-        return {
-          items: (data.response?.docs || []).filter(
-            (item): item is { identifier: string; creator?: string; title?: string } =>
-              typeof item === 'object' && item !== null && 'identifier' in item
-          ),
-          numFound: data.response?.numFound || 0,
-        };
-      } catch (e) {
-        console.error(`Query ${index} error:`, e);
-        return { items: [], numFound: 0 };
-      }
-    });
-
-    // Wait for all queries to complete
-    const results = await Promise.all(fetchPromises);
-
-    console.log(`Multi-query results: ${results.map((r, i) => `Q${i}=${r.items.length}`).join(', ')}`);
-
-    // Merge and deduplicate results by identifier
-    const seenIds = new Set<string>();
-    let allItems: { identifier: string; creator?: string; title?: string }[] = [];
-
-    for (const result of results) {
-      for (const item of result.items) {
-        if (!seenIds.has(item.identifier)) {
-          seenIds.add(item.identifier);
-          allItems.push(item);
-        }
-      }
-    }
-
-    // Filter out recently played tracks
-    if (excludeIds.size > 0) {
-      const beforeCount = allItems.length;
-      allItems = allItems.filter(item => !excludeIds.has(item.identifier));
-      console.log(`Filtered out ${beforeCount - allItems.length} recently played tracks`);
-    }
-
-    // Deduplicate by creator/show for variety across different shows
-    const itemsByCreator = new Map<string, typeof allItems>();
-    for (const item of allItems) {
-      const creator = item.creator ||
-                      item.identifier?.split('-')[0] ||
-                      item.title?.split(' - ')[0] ||
-                      'unknown';
-      const key = creator.toLowerCase().trim();
-
-      if (!itemsByCreator.has(key)) {
-        itemsByCreator.set(key, []);
-      }
-      itemsByCreator.get(key)!.push(item);
-    }
-
-    // Take 1 item per creator for maximum variety
-    const diverseItems: typeof allItems = [];
-    for (const [_, creatorItems] of itemsByCreator) {
-      const shuffledCreatorItems = shuffleArray(creatorItems);
-      diverseItems.push(shuffledCreatorItems[0]);
-    }
-
-    // Final shuffle
-    const items = shuffleArray(diverseItems);
-
-    const totalFound = Math.max(...results.map(r => r.numFound));
-
-    console.log(`Search: era=${era}, location=${location}, genre=${genre} -> ${items.length} diverse items from ${allItems.length} unique`);
-
-    return new Response(
-      JSON.stringify({
-        items,
-        page: pageNum,
-        count: items.length,
-        total: totalFound,
-        collectionsSearched: collections.length,
-      }),
-      {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-        },
-      }
-    );
-  } catch (error) {
-    console.error('Search error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Search failed', items: [], count: 0 }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+async function handleSearch(url: URL, corsHeaders: Record<string, string>): Promise<Response> {
+  const era = url.searchParams.get('era');
+  const location = url.searchParams.get('location');
+  const genre = url.searchParams.get('genre');
+  if (era && !/^\d{4}-\d{4}$/.test(era)) {
+    return Response.json({error: 'Invalid era'}, {status: 400, headers: corsHeaders});
   }
+  const collections = getFilteredCollections(era, location, genre);
+  if (!collections.length) return Response.json({items: [], count: 0, total: 0}, {headers: corsHeaders});
+  const page = Math.max(1, Number.parseInt(url.searchParams.get('page') || '1', 10) || 1);
+  // Archive limits query length. Keep every selected source, in bounded batches.
+  const batches: string[][] = [];
+  for (let i = 0; i < collections.length; i += 16) batches.push(collections.slice(i, i + 16));
+  const results = await Promise.allSettled(batches.map(async batch => {
+    const sources = batch.map(c => `"${c}"`).join(' OR ');
+    let query = `(collection:(${sources}) OR identifier:(${sources})) AND mediatype:audio`;
+    if (era) {
+      const [start, end] = era.split('-');
+      query += ` AND year:[${start} TO ${end}]`;
+    }
+    // The source maps specify region and genre; recordings rarely name continents.
+    const params = new URLSearchParams({q: query, rows: '100', page: String(page), output: 'json'});
+    for (const field of ['identifier', 'title', 'date', 'year', 'creator']) params.append('fl[]', field);
+    params.set('sort[]', 'downloads desc');
+    const response = await fetch(`https://archive.org/advancedsearch.php?${params}`, {
+      headers: {'User-Agent': 'anamnesis.fm/1.0'},
+      signal: AbortSignal.timeout(12000),
+      cf: {cacheTtl: 300, cacheEverything: true},
+    });
+    if (!response.ok) throw new Error(`Archive search returned ${response.status}`);
+    const data = await response.json() as {error?: string; response?: {docs?: Record<string, unknown>[]; numFound?: number}};
+    if (data.error || !data.response) throw new Error('Invalid Archive search response');
+    return data.response;
+  }));
+  const successful = results.filter(result => result.status === 'fulfilled');
+  if (!successful.length) throw new Error('Archive search unavailable');
+  const unique = new Map<string, {identifier: string; title: string; creator?: string; date?: string}>();
+  for (const result of successful) {
+    for (const item of result.value.docs || []) {
+      if (typeof item.identifier !== 'string') continue;
+      unique.set(item.identifier, {
+        identifier: item.identifier, title: textValue(item.title) || item.identifier,
+        creator: textValue(item.creator), date: textValue(item.year) || textValue(item.date),
+      });
+    }
+  }
+  const excluded = new Set((url.searchParams.get('exclude') || '').split(','));
+  const unseen = [...unique.values()].filter(item => !excluded.has(item.identifier));
+  // Small stations can loop once all their recordings have been heard.
+  const items = shuffleArray(unseen.length ? unseen : [...unique.values()]);
+  return Response.json({items, count: items.length, total: Math.max(...successful.map(result => result.value.numFound || 0)), page}, {
+    headers: {...corsHeaders, 'Cache-Control': 'public, max-age=60'},
+  });
 }
 
 // Fisher-Yates shuffle
@@ -906,6 +757,8 @@ async function handleMetadata(
 
     const response = await fetch(archiveUrl, {
       headers: { 'User-Agent': 'anamnesis.fm/1.0' },
+      signal: AbortSignal.timeout(12000),
+      cf: { cacheTtl: 3600, cacheEverything: true },
     });
 
     if (!response.ok) {
@@ -961,7 +814,7 @@ async function handleMetadata(
     }));
 
   const year = data.metadata?.year;
-  const date = data.metadata?.date;
+  const date = textValue(data.metadata?.date);
   let effectiveDate = date;
   if (year) {
     const yearNum = typeof year === 'number' ? year : parseInt(String(year), 10);
@@ -973,8 +826,8 @@ async function handleMetadata(
     return new Response(
       JSON.stringify({
         identifier: id,
-        title: data.metadata?.title || id,
-        creator: data.metadata?.creator,
+        title: textValue(data.metadata?.title) || id,
+        creator: textValue(data.metadata?.creator),
         date: effectiveDate,
         description: data.metadata?.description,
         coverage: data.metadata?.coverage,
@@ -1006,7 +859,7 @@ async function handleStream(
   request: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  if (!path) {
+  if (!path || !/^[a-zA-Z0-9_.-]+\//.test(path) || path.split('/').some(part => decodeURIComponent(part) === '..')) {
     return new Response('Missing path', {
       status: 400,
       headers: corsHeaders,
@@ -1024,11 +877,9 @@ async function handleStream(
     headers['Range'] = rangeHeader;
   }
 
-  const response = await fetch(archiveUrl, { headers });
+  const response = await fetch(archiveUrl, { headers, method: request.method === 'HEAD' ? 'HEAD' : 'GET', signal: AbortSignal.timeout(15000) });
 
-  if (!response.ok && response.status !== 206) {
-    throw new Error(`Archive.org stream error: ${response.status}`);
-  }
+  if (!response.ok) return new Response(null, {status: response.status, headers: {...corsHeaders, ...(response.headers.has('Content-Range') ? {'Content-Range': response.headers.get('Content-Range')!} : {})}});
 
   const contentType = response.headers.get('Content-Type') || 'audio/mpeg';
   const contentLength = response.headers.get('Content-Length');
@@ -1040,6 +891,7 @@ async function handleStream(
     'Content-Type': contentType,
     'Cache-Control': 'public, max-age=86400',
     'Accept-Ranges': acceptRanges || 'bytes',
+    'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
   };
 
   if (contentLength) {
@@ -1158,7 +1010,8 @@ async function handleListenerCount(
 // SoundCloud playlist for the Antarctica location
 // ============================================
 
-const PENGUIN_RADIO_PLAYLIST_URL = 'https://soundcloud.com/teddy-warner-910871598/sets/antartica-fm';
+// Use the playlist's stable ID: profile renames invalidate permalink resolution.
+const PENGUIN_RADIO_PLAYLIST_ID = 2180699213;
 
 // SoundCloud client_id - extracted from their public pages
 // This may need to be updated if SoundCloud changes their public client_id
@@ -1192,6 +1045,8 @@ async function fetchFullTrackDetails(trackId: number): Promise<SoundCloudTrack |
         'User-Agent': 'Mozilla/5.0 (compatible; anamnesis.fm/1.0)',
         'Accept': 'application/json',
       },
+      signal: AbortSignal.timeout(10000),
+      cf: {cacheTtl: 300, cacheEverything: true},
     });
     if (!response.ok) return null;
     return await response.json() as SoundCloudTrack;
@@ -1206,13 +1061,15 @@ async function handlePenguinRadio(
 ): Promise<Response> {
   try {
     // Use SoundCloud's API v2 to resolve the playlist
-    const resolveUrl = `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(PENGUIN_RADIO_PLAYLIST_URL)}&client_id=${SOUNDCLOUD_CLIENT_ID}`;
+    const resolveUrl = `https://api-v2.soundcloud.com/playlists/${PENGUIN_RADIO_PLAYLIST_ID}?client_id=${SOUNDCLOUD_CLIENT_ID}`;
 
     const response = await fetch(resolveUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; anamnesis.fm/1.0)',
         'Accept': 'application/json',
       },
+      signal: AbortSignal.timeout(10000),
+      cf: {cacheTtl: 300, cacheEverything: true},
     });
 
     if (!response.ok) {
@@ -1260,7 +1117,7 @@ async function handlePenguinRadio(
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate', // No caching - shuffle each time
+          'Cache-Control': 'public, max-age=300',
         },
       }
     );
@@ -1282,6 +1139,7 @@ async function handleSoundCloudStream(
   request: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
+  if (!/^\d+$/.test(trackId)) return new Response('Invalid track ID', {status: 400, headers: corsHeaders});
   try {
     // Get stream URL from SoundCloud API v2
     const trackUrl = `https://api-v2.soundcloud.com/tracks/${trackId}?client_id=${SOUNDCLOUD_CLIENT_ID}`;
@@ -1291,6 +1149,8 @@ async function handleSoundCloudStream(
         'User-Agent': 'Mozilla/5.0 (compatible; anamnesis.fm/1.0)',
         'Accept': 'application/json',
       },
+      signal: AbortSignal.timeout(10000),
+      cf: {cacheTtl: 300, cacheEverything: true},
     });
 
     if (!trackResponse.ok) {
@@ -1302,11 +1162,9 @@ async function handleSoundCloudStream(
     // Find the best transcoding (prefer progressive mp3)
     const transcodings = track.media?.transcodings || [];
     const progressive = transcodings.find(t => t.format.protocol === 'progressive');
-    const hls = transcodings.find(t => t.format.protocol === 'hls');
-
-    const transcoding = progressive || hls;
+    const transcoding = progressive;
     if (!transcoding) {
-      throw new Error('No stream URL available for this track');
+      throw new Error('No browser-compatible MP3 stream available for this track');
     }
 
     // Get the actual stream URL
@@ -1314,6 +1172,7 @@ async function handleSoundCloudStream(
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; anamnesis.fm/1.0)',
       },
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!streamUrlResponse.ok) {
@@ -1327,6 +1186,8 @@ async function handleSoundCloudStream(
     const rangeHeader = request.headers.get('Range');
     const streamResponse = await fetch(streamUrl, {
       headers: rangeHeader ? { Range: rangeHeader } : {},
+      method: request.method === 'HEAD' ? 'HEAD' : 'GET',
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!streamResponse.ok && streamResponse.status !== 206) {
@@ -1342,6 +1203,7 @@ async function handleSoundCloudStream(
       'Content-Type': contentType,
       'Cache-Control': 'public, max-age=86400',
       'Accept-Ranges': 'bytes',
+      'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
     };
 
     if (contentLength) {

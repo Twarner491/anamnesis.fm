@@ -6,20 +6,27 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test": "vitest run",
+    "check": "astro check && tsc -p worker/tsconfig.json"
   },
   "dependencies": {
-    "@astrojs/react": "^4.4.2",
+    "@astrojs/react": "^7.0.1",
     "@nanostores/persistent": "^1.2.0",
     "@nanostores/react": "^1.0.0",
     "@types/react": "^19.2.9",
     "@types/react-dom": "^19.2.3",
-    "astro": "^5.16.15",
+    "astro": "^7.3.8",
     "nanostores": "^1.1.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },
   "devDependencies": {
-    "@astrojs/node": "^9.5.2"
+    "@astrojs/check": "^0.9.10",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

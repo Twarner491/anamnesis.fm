@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { getAudioManager } from '../lib/audio-manager';
 import { DisplayPanel } from './radio/DisplayPanel';
 import { WaveformVisualizer } from './radio/WaveformVisualizer';
 import { Globe } from './radio/Globe';
@@ -9,6 +11,7 @@ import { ListenerCount } from './ListenerCount';
 import './Radio.css';
 
 export function Radio() {
+  useEffect(() => { void getAudioManager().fetchMoreTracks(); }, []);
   return (
     <div className="radio">
       <PageMeta />

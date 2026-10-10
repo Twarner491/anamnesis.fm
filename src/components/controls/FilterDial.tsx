@@ -133,13 +133,20 @@ export function FilterDial({ type }: FilterDialProps) {
   };
 
   const rotation = (currentIndex / options.length) * 360;
-  const currentOption = options[currentIndex];
+  const currentOption = options[currentIndex] || options[0];
 
   return (
     <div className={`filter-dial ${!isPoweredOn ? 'power-off' : ''}`}>
       <div className="filter-label">{type === 'location' ? 'REGION' : 'GENRE'}</div>
 
       <div
+        role="button"
+        tabIndex={isPoweredOn ? 0 : -1}
+        aria-label={`${type === 'location' ? 'Region' : 'Genre'}: ${currentOption.label}`}
+        aria-disabled={!isPoweredOn}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); }
+        }}
         ref={dialRef}
         className={`filter-knob ${isDragging ? 'dragging' : ''}`}
         style={{
