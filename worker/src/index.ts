@@ -388,194 +388,12 @@ const COLLECTIONS_BY_GENRE: Record<string, string[]> = {
   ],
 };
 
-// Pre-grouped collections by DECADE
-// Note: These are approximate - the era of the broadcast, not necessarily the music
-const COLLECTIONS_BY_DECADE: Record<string, string[]> = {
-  '1930-1939': [
-    'oldtimeradio',
-    'fibbermcgee',
-    'OTRR_Certified_Lux_Radio_Theatre',
-    'OrsonWelles_MercuryTheatre',
-    'OrsonWelles_CampbellPlayhouse',
-  ],
-
-  '1940-1949': [
-    'oldtimeradio',
-    'suspenseradio',
-    'fibbermcgee',
-    'abbottandcostelloradio',
-    'armedforcesradioservice',
-    'radiobooks',
-    'OTRR_Certified_Lux_Radio_Theatre',
-    'OrsonWelles_MercuryTheatre',
-    'OrsonWelles_CampbellPlayhouse',
-  ],
-
-  '1950-1959': [
-    'oldtimeradio',
-    'suspenseradio',
-    'fibbermcgee',
-    'joy-boys',
-    'bobandraytoaster',
-    'armedforcesradioservice',
-    'pacifica_radio_archives_grammy_2013',
-    'radiobooks',
-    'radio-pakistan-general-overseas-svc-han',
-    'PirateYearsRadioShowWithPaulPeters',
-    'OTRR_Certified_Lux_Radio_Theatre',
-  ],
-
-  '1960-1969': [
-    'oldtimeradio',
-    'joy-boys',
-    'bobandraytoaster',
-    'pacifica_radio_archives_grammy_2013',
-    'armedforcesradioservice',
-    'radiobooks',
-    'radio-pakistan-general-overseas-svc-han',
-    'EdMorenosTributeToTomPepperChairmanRadioInvictaAutum1964',
-    'PirateYearsRadioShowWithPaulPeters',
-  ],
-
-  '1970-1979': [
-    'bobandraytoaster',
-    'radiofreecrockett',
-    'pacifica_radio_archives_grammy_2013',
-    'imus-in-the-morning',
-    'armedforcesradioservice',
-    'radiobooks',
-    'sraa-voice-of-kenya-circa-1975',
-    'radio-pakistan-general-overseas-svc-han',
-    'sraa-syrian-radio-amp-television-1970s-recording',
-    'PirateYearsRadioShowWithPaulPeters',
-  ],
-
-  '1980-1989': [
-    'hiphopradioarchive',
-    'radiofreecrockett',
-    '2600-off-the-hook',
-    'FM99_WNOR_Tommy_and_Rumble',
-    'pacifica_radio_archives_grammy_2013',
-    'imus-in-the-morning',
-    'armedforcesradioservice',
-    'radiobooks',
-    'radio-pakistan-general-overseas-svc-han',
-    'death-is-not-the-end-london-pirate-radio-adverts-1984-1993-vol.-1',
-    'uk-rave-mixtapes-1988-1993-complete',
-    'ShortwavePirateRadio',
-    'shortwave-pirate-radio-studio-recordings',
-    'PirateYearsRadioShowWithPaulPeters',
-  ],
-
-  '1990-1999': [
-    'hiphopradioarchive',
-    'uprisingradio',
-    'eastvillageradio-the-bobbito-garcia-radio-show',
-    'imus-in-the-morning',
-    '2600-off-the-hook',
-    'FM99_WNOR_Tommy_and_Rumble',
-    'pacifica_radio_archives_grammy_2013',
-    'Radio-BBC-Radio-5-Live',
-    'armedforcesradioservice',
-    'radiobooks',
-    'radio-pakistan-general-overseas-svc-han',
-    'uk-rave-mixtapes-1988-1993-complete',
-    'death-is-not-the-end-london-pirate-radio-adverts-1984-1993-vol.-1',
-    'ShortwavePirateRadio',
-    'shortwave-pirate-radio-studio-recordings',
-    'PirateYearsRadioShowWithPaulPeters',
-  ],
-
-  '2000-2009': [
-    'eastvillageradio',
-    'eastvillageradio-minimal-wave',
-    'eastvillageradio-mystic-sound',
-    'eastvillageradio-peer-pressure',
-    'eastvillageradio-the-holy-sh-t-sound-system',
-    'eastvillageradio-forty-deuce',
-    'eastvillageradio-jamaica-rock',
-    'eastvillageradio-pop-goes-the-future',
-    'eastvillageradio-the-ragged-phonograph-program',
-    'eastvillageradio-radioingrid',
-    'eastvillageradio-black-and-blue-take-over',
-    'Radio-BBC-Radio-5-Live',
-    '2600-off-the-hook',
-    'FM99_WNOR_Tommy_and_Rumble',
-    'alanwattarchive',
-    'wyceradio',
-    'concertzender',
-    'imus-in-the-morning',
-    'armedforcesradioservice',
-    'uprisingradio',
-    'pacifica_radio_archives_grammy_2013',
-    'radiobooks',
-    'radio-pakistan-general-overseas-svc-han',
-    'hiphopradioarchive',
-    'ShortwavePirateRadio',
-    'shortwave-pirate-radio-studio-recordings',
-    'stalking-the-nightmare-radio',
-  ],
-
-  '2010-2019': [
-    'eastvillageradio',
-    'Radio-BBC-Radio-5-Live',
-    'concertzender',
-    'ujyaaloradio',
-    'cairopublicradio',
-    'osornoradio',
-    'lamosquitera',
-    'radiocaracasradio',
-    'wyceradio',
-    'alanwattarchive',
-    '2600-off-the-hook',
-    'armedforcesradioservice',
-    'pacifica_radio_archives_grammy_2013',
-    'radiobooks',
-    'radio-pakistan-general-overseas-svc-han',
-    'uprisingradio',
-    'vanzemlja-sounds',
-    'ShortwavePirateRadio',
-    'shortwave-pirate-radio-studio-recordings',
-    'utmafolkshow',
-    'sraa-radio-thailand-june-13-2016',
-    // Ghana stations
-    'modernghanaradiocenterrewind-2010-daasebreonhighliferadiolive',
-    '2ModernGhanaRadioCenteronlineAudioConverter.comHIGHLIFERADIOARCHIVESDAASEBRETIME',
-    'GHANAARCHIVES-EMERGINGCOMMUNITYRADIOKAKAGHANAMEDIA-NKWAFM',
-    'G.A.DABLEKUMAOPAMFORADIO',
-  ],
-
-  '2020-2029': [
-    'Radio-BBC-Radio-5-Live',
-    'radiowombat',
-    'cairopublicradio',
-    'radiostationarchives',
-    'radioshowarchive',
-    'radioprograms',
-    'wyceradio',
-    'concertzender',
-    '2600-off-the-hook',
-    'armedforcesradioservice',
-    'radiobooks',
-    'radio-pakistan-general-overseas-svc-han',
-    'vanzemlja-sounds',
-    'ShortwavePirateRadio',
-    'GHANAARCHIVES-EMERGINGCOMMUNITYRADIOKAKAGHANAMEDIA-NKWAFM',
-  ],
-};
-
 // Get collections filtered by criteria
 function getFilteredCollections(
-  era: string | null,
   location: string | null,
   genre: string | null
 ): string[] {
   let collections = new Set<string>(ALL_RADIO_COLLECTIONS);
-
-  // Filter by era/decade if specified
-  if (era && COLLECTIONS_BY_DECADE[era]) {
-    collections = new Set(COLLECTIONS_BY_DECADE[era]);
-  }
 
   // Filter by location/continent - intersect with current set
   if (location) {
@@ -683,7 +501,7 @@ async function handleSearch(url: URL, corsHeaders: Record<string, string>): Prom
   if (era && !/^\d{4}-\d{4}$/.test(era)) {
     return Response.json({error: 'Invalid era'}, {status: 400, headers: corsHeaders});
   }
-  const collections = getFilteredCollections(era, location, genre);
+  const collections = getFilteredCollections(location, genre);
   if (!collections.length) return Response.json({items: [], count: 0, total: 0}, {headers: corsHeaders});
   const page = Math.max(1, Number.parseInt(url.searchParams.get('page') || '1', 10) || 1);
   // Archive limits query length. Keep every selected source, in bounded batches.

@@ -94,3 +94,12 @@ it('lets a small station repeat after every item has been played', async () => {
   vi.mocked(fetch).mockResolvedValue(Response.json({response:{docs:[{identifier:'only',title:'Only show'}],numFound:1}}));
   expect((await (await request('/api/search?location=Australia&exclude=only')).json()).items).toHaveLength(1);
 });
+
+it('searches actual recording years rather than guessing which decades a station covers', async () => {
+  vi.mocked(fetch).mockResolvedValue(Response.json({response:{docs:[{identifier:'australia1994',year:1994}],numFound:1}}));
+  const result = await request('/api/search?location=Australia&era=1990-1999');
+  expect((await result.json()).items[0].date).toBe('1994');
+  const query = new URL(String(vi.mocked(fetch).mock.calls[0][0])).searchParams.get('q');
+  expect(query).toContain('stalking-the-nightmare-radio');
+  expect(query).toContain('year:[1990 TO 1999]');
+});
